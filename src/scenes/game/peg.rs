@@ -1,6 +1,7 @@
-use crate::types::Coordinate;
+use crate::types::{Coordinate, Fixed};
 use agb::display::GraphicsFrame;
 use agb::display::object::Object;
+use agb::fixnum::num;
 use agb::include_aseprite;
 
 include_aseprite!(
@@ -8,8 +9,12 @@ include_aseprite!(
     "assets/peg.aseprite"
 );
 
+pub fn radius() -> Fixed {
+    num!(3)
+}
+
 pub struct Peg {
-    position: Coordinate,
+    pub position: Coordinate,
     sprite: Object,
     touched: bool,
 }
@@ -23,7 +28,18 @@ impl Peg {
         }
     }
 
-    pub fn show(self: &mut Self, frame: &mut GraphicsFrame) {
-        self.sprite.set_pos(self.position.round()).show(frame);
+    pub fn touch(self: &mut Peg) {
+        self.touched = true;
+    }
+
+    pub fn is_touched(self: &Peg) -> bool {
+        self.touched
+    }
+
+    pub fn show(self: &mut Peg, frame: &mut GraphicsFrame) {
+        self.sprite.set_pos(self.position.round());
+        if !self.touched {
+            self.sprite.show(frame);
+        }
     }
 }

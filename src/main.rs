@@ -6,8 +6,6 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
-use agb::fixnum::{num, vec2};
-
 mod error;
 mod scenes;
 mod types;

@@ -9,11 +9,13 @@ include_aseprite!(
     "assets/ball.aseprite"
 );
 
-const RADIUS: Fixed = Fixed::from_raw(0x00000300);
+pub fn radius() -> Fixed {
+    num!(3)
+}
 
 pub struct Ball {
-    position: Coordinate,
-    velocity: Force,
+    pub position: Coordinate,
+    pub velocity: Force,
     sprite: Object,
 }
 
@@ -26,7 +28,7 @@ impl Ball {
         }
     }
 
-    pub fn show(self: &mut Self, frame: &mut GraphicsFrame) {
+    pub fn show(self: &mut Ball, frame: &mut GraphicsFrame) {
         self.sprite.set_pos(self.position.round()).show(frame);
     }
 }

@@ -2,16 +2,16 @@ use crate::error::Error;
 
 mod game;
 
-enum State {
+enum Scene {
     Game,
 }
 
 pub fn main(mut gba: agb::Gba) -> Result<(), Error> {
-    let mut state = State::Game;
+    let mut state = Scene::Game;
 
     loop {
         state = match state {
-            State::Game => game::main(&mut gba)?,
+            Scene::Game => game::main(&mut gba)?,
         };
     }
 }
