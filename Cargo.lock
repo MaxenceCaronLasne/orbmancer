@@ -87,13 +87,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "agb_template"
-version = "0.1.0"
-dependencies = [
- "agb",
-]
-
-[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -343,6 +336,13 @@ name = "pagination-packing"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e44d669b8f726d91bf65d1f421e30723ea930e02765c01a2f9da554f58048dc3"
+
+[[package]]
+name = "peg-gle"
+version = "0.1.0"
+dependencies = [
+ "agb",
+]
 
 [[package]]
 name = "png"

@@ -4,6 +4,8 @@
 #![cfg_attr(test, reexport_test_harness_main = "test_main")]
 #![cfg_attr(test, test_runner(agb::test_runner::test_runner))]
 
+use agb::fixnum::FixedNum;
+
 #[cfg(test)]
 #[agb::entry]
 fn main(mut _gba: agb::Gba) -> ! {
@@ -15,8 +17,14 @@ fn main(mut _gba: agb::Gba) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use agb::Gba;
+    use agb::{Gba, fixnum::FixedNum};
 
     #[test_case]
     fn test_sample(_gba: &mut Gba) {}
+
+    #[test_case]
+    fn test_fixnum(_gba: &mut Gba) {
+        let radius = FixedNum::<8>::new(3);
+        agb::println!("radius={}, raw={:#08x}", radius, radius.to_raw());
+    }
 }
