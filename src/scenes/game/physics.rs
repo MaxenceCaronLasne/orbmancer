@@ -30,6 +30,10 @@ fn handle_peg_collisions(ball: &mut Ball, pegs: &mut [Peg]) {
     let peg_radius = num!(peg::RADIUS);
 
     for peg in pegs.iter_mut() {
+        if peg.is_touched() {
+            continue;
+        }
+        
         let distance_vector = ball.position - peg.position;
         let distance = distance_vector.magnitude();
         let collision_distance = ball_radius + peg_radius;

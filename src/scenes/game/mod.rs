@@ -33,8 +33,8 @@ struct GameState {
 }
 
 fn spawn_pegs(pegs: &mut Vec<Peg>) {
-    for i in 1..10 {
-        for j in 1..20 {
+    for i in 1..6 {
+        for j in 1..11 {
             pegs.push(Peg::new(vec2(Fixed::new(j * 20), Fixed::new(i * 20))));
         }
     }
@@ -132,10 +132,10 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         };
 
         let mut frame = gfx.frame();
-        ball.show(&mut frame);
         for p in pegs.iter_mut() {
             p.show(&mut frame);
         }
+        ball.show(&mut frame);
         frame.commit();
     }
 }
