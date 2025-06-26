@@ -3,10 +3,7 @@ use agb::display::GraphicsFrame;
 use agb::display::object::Object;
 use agb::include_aseprite;
 
-// Peg constants
 pub const RADIUS: f32 = 3.0;
-
-// Standard force radii for peg interactions
 pub const FORCE_RADII: [f32; 4] = [5.0, 10.0, 15.0, 20.0];
 
 include_aseprite!(

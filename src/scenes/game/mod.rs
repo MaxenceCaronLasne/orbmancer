@@ -11,7 +11,6 @@ use peg::Peg;
 
 pub mod ball;
 pub mod peg;
-pub mod peg_physics;
 pub mod physics;
 
 // Game constants
@@ -135,17 +134,10 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     spawn_pegs(&mut pegs, &mut rng);
 
-    let mut peg_physics_frame_counter = 0u8;
-
     loop {
         input.update();
 
-        peg_physics_frame_counter = peg_physics_frame_counter.wrapping_add(1);
-        peg_physics::update_peg_forces(
-            &mut pegs,
-            num!(DELTA_TIME), //* num!(4.0),
-        );
-        if peg_physics_frame_counter % 4 == 0 {}
+        physics::update_peg_physics(&mut pegs, num!(DELTA_TIME));
 
         state = match state {
             State::Aiming => {
@@ -155,7 +147,6 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
             State::Counting => update_counting(&mut ball, &mut pegs)?,
         };
 
-        //busy_wait_for_vblank();
         let mut frame = gfx.frame();
         for p in pegs.iter_mut() {
             p.show(&mut frame);
