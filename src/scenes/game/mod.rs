@@ -50,7 +50,6 @@ fn update_aiming(
     let left_currently_pressed = input.is_pressed(Button::LEFT);
     let right_currently_pressed = input.is_pressed(Button::RIGHT);
 
-    // Update horizontal velocity based on input
     if left_currently_pressed && !right_currently_pressed {
         game_state.horizontal_velocity = (game_state.horizontal_velocity
             - num!(VELOCITY_CHANGE_RATE) * delta_time)
@@ -61,21 +60,25 @@ fn update_aiming(
             .min(num!(MAX_HORIZONTAL_VELOCITY));
     }
 
-    // Log horizontal velocity on button release
     if game_state.left_pressed && !left_currently_pressed {
-        agb::println!("Horizontal velocity: {}", game_state.horizontal_velocity);
+        agb::println!(
+            "Horizontal velocity: {}",
+            game_state.horizontal_velocity
+        );
     }
     if game_state.right_pressed && !right_currently_pressed {
-        agb::println!("Horizontal velocity: {}", game_state.horizontal_velocity);
+        agb::println!(
+            "Horizontal velocity: {}",
+            game_state.horizontal_velocity
+        );
     }
 
     game_state.left_pressed = left_currently_pressed;
     game_state.right_pressed = right_currently_pressed;
 
-    // Launch ball when A is pressed
     if input.is_just_pressed(Button::A) {
-        // Use horizontal velocity directly, no vertical velocity (gravity handles downward motion)
-        ball.velocity = vec2(game_state.horizontal_velocity, num!(BALL_START_Y));
+        ball.velocity =
+            vec2(game_state.horizontal_velocity, num!(BALL_START_Y));
         return Ok(State::Falling);
     }
 
