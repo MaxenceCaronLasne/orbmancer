@@ -2,7 +2,7 @@ use agb::display::GraphicsFrame;
 use agb::fixnum::num;
 use agb::{display::object::Object, fixnum::vec2, include_aseprite};
 
-use crate::types::{Coordinate, Fixed, Force};
+use crate::types::{Coordinate, Force};
 
 // Ball constants
 pub const RADIUS: f32 = 3.0;

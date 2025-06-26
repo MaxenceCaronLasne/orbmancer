@@ -3,6 +3,7 @@ use crate::scenes::Scene;
 use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
+use agb::rng::RandomNumberGenerator;
 use alloc::alloc::Global;
 use alloc::vec::Vec;
 use ball::Ball;
@@ -10,6 +11,7 @@ use peg::Peg;
 
 pub mod ball;
 pub mod peg;
+pub mod peg_physics;
 pub mod physics;
 
 // Game constants
@@ -32,11 +34,23 @@ struct GameState {
     right_pressed: bool,
 }
 
-fn spawn_pegs(pegs: &mut Vec<Peg>) {
-    for i in 1..6 {
-        for j in 1..11 {
-            pegs.push(Peg::new(vec2(Fixed::new(j * 20), Fixed::new(i * 20))));
-        }
+fn spawn_pegs(pegs: &mut Vec<Peg>, rng: &mut RandomNumberGenerator) {
+    let peg_count = 50;
+    let screen_width = 140;
+    let screen_height = 120;
+    let min_x = 20;
+    let min_y = 30;
+
+    for _ in 0..peg_count {
+        let x = min_x + (rng.next_i32().abs() % (screen_width - min_x));
+        let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
+
+        let force_radius_index =
+            (rng.next_i32().abs() % peg::FORCE_RADII.len() as i32) as usize;
+        let force_radius =
+            Fixed::new(peg::FORCE_RADII[force_radius_index] as i32);
+
+        pegs.push(Peg::new(vec2(Fixed::new(x), Fixed::new(y)), force_radius));
     }
 }
 
@@ -117,11 +131,22 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
     let mut pegs = Vec::<Peg>::new_in(Global);
+    let mut rng = RandomNumberGenerator::new();
 
-    spawn_pegs(&mut pegs);
+    spawn_pegs(&mut pegs, &mut rng);
+
+    let mut peg_physics_frame_counter = 0u8;
 
     loop {
         input.update();
+
+        peg_physics_frame_counter = peg_physics_frame_counter.wrapping_add(1);
+        if peg_physics_frame_counter % 4 == 0 {
+            peg_physics::update_peg_forces(
+                &mut pegs,
+                num!(DELTA_TIME) * num!(4.0),
+            );
+        }
 
         state = match state {
             State::Aiming => {
@@ -131,6 +156,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
             State::Counting => update_counting(&mut ball, &mut pegs)?,
         };
 
+        //busy_wait_for_vblank();
         let mut frame = gfx.frame();
         for p in pegs.iter_mut() {
             p.show(&mut frame);
