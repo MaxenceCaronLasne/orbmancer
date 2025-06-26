@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-mod game;
+pub mod game;
 
 enum Scene {
     Game,

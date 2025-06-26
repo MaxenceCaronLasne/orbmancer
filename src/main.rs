@@ -10,6 +10,9 @@ mod error;
 mod scenes;
 mod types;
 
+#[cfg(test)]
+mod test_scenes;
+
 fn main(gba: agb::Gba) -> Result<(), error::Error> {
     scenes::main(gba)
 }

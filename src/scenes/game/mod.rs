@@ -8,9 +8,9 @@ use alloc::vec::Vec;
 use ball::Ball;
 use peg::Peg;
 
-mod ball;
-mod peg;
-mod physics;
+pub mod ball;
+pub mod peg;
+pub mod physics;
 
 enum State {
     Aiming,
