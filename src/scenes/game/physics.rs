@@ -15,6 +15,16 @@ pub fn move_and_collide(ball: &mut Ball, pegs: &mut [Peg], delta_time: Fixed) {
     ball.velocity = initial_velocity + gravity() * delta_time;
     ball.position = initial_position + ball.velocity * delta_time;
 
+    // Wall collisions
+    let radius = ball::radius();
+    if ball.position.x < radius {
+        ball.position.x = radius;
+        ball.velocity.x = -ball.velocity.x;
+    } else if ball.position.x > num!(160.0) - radius {
+        ball.position.x = num!(160.0) - radius;
+        ball.velocity.x = -ball.velocity.x;
+    }
+
     // Freeze ball if it goes below screen (180 pixels to be completely hidden)
     if ball.position.y > num!(180.0) {
         ball.velocity = Force::new(num!(0.0), num!(0.0));
