@@ -4,14 +4,13 @@ use agb::display::object::Object;
 use agb::fixnum::num;
 use agb::include_aseprite;
 
+// Peg constants
+pub const RADIUS: f32 = 3.0;
+
 include_aseprite!(
     mod sprites,
     "assets/peg.aseprite"
 );
-
-pub fn radius() -> Fixed {
-    num!(3)
-}
 
 pub struct Peg {
     pub position: Coordinate,

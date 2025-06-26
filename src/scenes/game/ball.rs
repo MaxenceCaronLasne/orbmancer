@@ -4,14 +4,14 @@ use agb::{display::object::Object, fixnum::vec2, include_aseprite};
 
 use crate::types::{Coordinate, Fixed, Force};
 
+// Ball constants
+pub const RADIUS: f32 = 3.0;
+const ZERO: f32 = 0.0;
+
 include_aseprite!(
     mod sprites,
     "assets/ball.aseprite"
 );
-
-pub fn radius() -> Fixed {
-    num!(3)
-}
 
 pub struct Ball {
     pub position: Coordinate,
@@ -23,7 +23,7 @@ impl Ball {
     pub fn new(position: Coordinate) -> Self {
         Self {
             position,
-            velocity: vec2(num!(0), num!(0)),
+            velocity: vec2(num!(ZERO), num!(ZERO)),
             sprite: Object::new(sprites::BALL.sprite(0)),
         }
     }
