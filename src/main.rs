@@ -17,6 +17,16 @@ fn main(gba: agb::Gba) -> Result<(), error::Error> {
     scenes::main(gba)
 }
 
+#[cfg(test)]
+#[agb::entry]
+fn main_test(mut _gba: agb::Gba) -> ! {
+    test_main();
+    loop {
+        agb::display::busy_wait_for_vblank();
+    }
+}
+
+#[cfg(not(test))]
 #[agb::entry]
 fn entry(gba: agb::Gba) -> ! {
     match main(gba) {
@@ -28,5 +38,43 @@ fn entry(gba: agb::Gba) -> ! {
 
     loop {
         agb::halt();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use agb::{Gba, fixnum::FixedNum};
+
+    #[test_case]
+    fn test_sample(_gba: &mut Gba) {}
+
+    #[test_case]
+    fn test_fixnum(_gba: &mut Gba) {
+        let radius = FixedNum::<8>::new(3);
+        agb::println!("radius={}, raw={:#08x}", radius, radius.to_raw());
+    }
+
+    #[test_case]
+    fn test_physics_sparse_pegs(gba: &mut Gba) {
+        use crate::test_scenes::{run_test_scene, PhysicsTest};
+        
+        agb::println!("Running physics test: sparse pegs");
+        agb::println!("Controls: L/R/SELECT = switch test, START = finish");
+        
+        match run_test_scene::<PhysicsTest>(gba, 3600) {  // 60 seconds max
+            Ok(result) => agb::println!("Test result: {:?}", result),
+            Err(e) => agb::println!("Test error: {:?}", e),
+        }
+    }
+
+    #[test_case]
+    fn test_physics_all_scenarios(gba: &mut Gba) {
+        agb::println!("Running comprehensive physics test");
+        agb::println!("Controls: L=sparse pegs, R=dense cluster, SELECT=wall bounce, START=finish");
+        
+        match crate::test_scenes::run_test_scene::<crate::test_scenes::PhysicsTest>(gba, 3600) {
+            Ok(result) => agb::println!("Test result: {:?}", result),
+            Err(e) => agb::println!("Test error: {:?}", e),
+        }
     }
 }

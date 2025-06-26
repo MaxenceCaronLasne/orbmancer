@@ -16,8 +16,8 @@ const ZERO: f32 = 0.0;
 fn handle_wall_collisions(ball: &mut Ball) {
     let ball_radius = num!(ball::RADIUS);
 
-    if ball.position.x < ball_radius {
-        ball.position.x = ball_radius;
+    if ball.position.x < num!(LEFT_WALL) + ball_radius {
+        ball.position.x = num!(LEFT_WALL) + ball_radius;
         ball.velocity.x = -ball.velocity.x * num!(WALL_BOUNCE_DAMPING);
     } else if ball.position.x > num!(RIGHT_WALL) - ball_radius {
         ball.position.x = num!(RIGHT_WALL) - ball_radius;

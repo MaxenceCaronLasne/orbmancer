@@ -154,7 +154,7 @@ impl PhysicsTest {
         // Create pegs at configured positions
         let mut pegs = Vec::<Peg>::new_in(Global);
         for (x, y) in &config.peg_positions {
-            pegs.push(Peg::new(vec2(*x, *y)));
+            pegs.push(Peg::new(vec2(*x, *y), num!(25.0))); // Use default force radius for tests
         }
 
         Self {

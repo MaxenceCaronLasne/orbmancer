@@ -35,7 +35,7 @@ struct GameState {
 }
 
 fn spawn_pegs(pegs: &mut Vec<Peg>, rng: &mut RandomNumberGenerator) {
-    let peg_count = 50;
+    let peg_count = 20;
     let screen_width = 140;
     let screen_height = 120;
     let min_x = 20;
@@ -141,12 +141,11 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         input.update();
 
         peg_physics_frame_counter = peg_physics_frame_counter.wrapping_add(1);
-        if peg_physics_frame_counter % 4 == 0 {
-            peg_physics::update_peg_forces(
-                &mut pegs,
-                num!(DELTA_TIME) * num!(4.0),
-            );
-        }
+        peg_physics::update_peg_forces(
+            &mut pegs,
+            num!(DELTA_TIME), //* num!(4.0),
+        );
+        if peg_physics_frame_counter % 4 == 0 {}
 
         state = match state {
             State::Aiming => {

@@ -7,7 +7,7 @@ use agb::include_aseprite;
 pub const RADIUS: f32 = 3.0;
 
 // Standard force radii for peg interactions
-pub const FORCE_RADII: [f32; 4] = [15.0, 25.0, 35.0, 50.0];
+pub const FORCE_RADII: [f32; 4] = [5.0, 10.0, 15.0, 20.0];
 
 include_aseprite!(
     mod sprites,

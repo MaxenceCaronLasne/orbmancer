@@ -2,7 +2,7 @@ use crate::error::Error;
 
 pub mod game;
 
-enum Scene {
+pub enum Scene {
     Game,
 }
 
