@@ -1,7 +1,7 @@
 use crate::types::{Coordinate, Fixed};
 use agb::display::GraphicsFrame;
 use agb::display::object::Object;
-use agb::fixnum::{Vector2D, num, vec2};
+use agb::fixnum::{num, vec2};
 use agb::include_aseprite;
 
 pub const RADIUS: f32 = 3.0;
@@ -62,13 +62,6 @@ impl Pegs {
         self.position[index as usize]
     }
 
-    pub fn set_position(&mut self, index: PegIndex, new_value: Coordinate) {
-        self.position[index as usize] = new_value;
-    }
-
-    pub fn force_radius_squared(&self, index: PegIndex) -> Fixed {
-        self.force_radius_squared[index as usize]
-    }
 
     pub fn touch(&mut self, index: PegIndex) {
         if index < self.count {

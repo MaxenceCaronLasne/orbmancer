@@ -36,16 +36,6 @@ impl Grid {
         res
     }
 
-    pub fn update(&mut self, pegs: &Pegs) {
-        self.hash_map.clear();
-
-        for i in 0..pegs.count {
-            if pegs.is_present(i) {
-                let _ = self.push(i, pegs.position(i));
-            }
-        }
-    }
-
     fn coord_to_grid(
         coordinate: Coordinate,
     ) -> Result<GridCoordinate, TryFromIntError> {
@@ -87,14 +77,14 @@ impl NeighborStrategy for Grid {
     ) -> impl Iterator<Item = PegIndex> {
         let gc = match Self::coord_to_grid(coordinate) {
             Ok(coords) => coords,
-            Err(_) => return GridNeighborIterator::empty(),
+            Err(_) => return NeighborIter::empty(),
         };
 
-        GridNeighborIterator::new(self, gc)
+        NeighborIter::new(self, gc)
     }
 }
 
-pub struct GridNeighborIterator<'a> {
+pub struct NeighborIter<'a> {
     grid: &'a Grid,
     center: GridCoordinate,
     offset_x: i8,
@@ -102,7 +92,7 @@ pub struct GridNeighborIterator<'a> {
     current_cell_iter: Option<core::slice::Iter<'a, PegIndex>>,
 }
 
-impl<'a> GridNeighborIterator<'a> {
+impl<'a> NeighborIter<'a> {
     #[inline]
     fn new(grid: &'a Grid, center: GridCoordinate) -> Self {
         Self {
@@ -116,15 +106,13 @@ impl<'a> GridNeighborIterator<'a> {
 
     #[inline]
     fn empty() -> Self {
-        // Create an empty grid for the empty iterator
         static EMPTY_GRID: Grid = Grid {
             hash_map: HashMap::new(),
         };
-
         Self {
             grid: &EMPTY_GRID,
             center: Vector2D::new(0, 0),
-            offset_x: 2, // Start beyond valid range to return None immediately
+            offset_x: 2,
             offset_y: 2,
             current_cell_iter: None,
         }
@@ -132,48 +120,40 @@ impl<'a> GridNeighborIterator<'a> {
 
     #[inline]
     fn advance_to_next_cell(&mut self) -> bool {
-        // Move to next cell offset
-        self.offset_x += 1;
-        if self.offset_x > 1 {
-            self.offset_x = -1;
-            self.offset_y += 1;
-            if self.offset_y > 1 {
-                return false; // No more cells
+        loop {
+            self.offset_x += 1;
+            if self.offset_x > 1 {
+                self.offset_x = -1;
+                self.offset_y += 1;
+                if self.offset_y > 1 {
+                    return false;
+                }
+            }
+
+            let target_x = match self.offset_x {
+                -1 => self.center.x.checked_sub(1),
+                0 => Some(self.center.x),
+                _ => self.center.x.checked_add(1),
+            };
+
+            let target_y = match self.offset_y {
+                -1 => self.center.y.checked_sub(1),
+                0 => Some(self.center.y),
+                _ => self.center.y.checked_add(1),
+            };
+
+            if let (Some(x), Some(y)) = (target_x, target_y) {
+                let coord = Vector2D::new(x, y);
+                if let Some(pegs_in_cell) = self.grid.hash_map.get(&coord) {
+                    self.current_cell_iter = Some(pegs_in_cell.iter());
+                    return true;
+                }
             }
         }
-
-        // Calculate actual grid coordinate
-        let target_x = if self.offset_x < 0 {
-            self.center.x.checked_sub(1)
-        } else if self.offset_x == 0 {
-            Some(self.center.x)
-        } else {
-            self.center.x.checked_add(1)
-        };
-
-        let target_y = if self.offset_y < 0 {
-            self.center.y.checked_sub(1)
-        } else if self.offset_y == 0 {
-            Some(self.center.y)
-        } else {
-            self.center.y.checked_add(1)
-        };
-
-        // Direct HashMap lookup - skip empty cells immediately
-        if let (Some(x), Some(y)) = (target_x, target_y) {
-            let coord = Vector2D::new(x, y);
-            if let Some(pegs_in_cell) = self.grid.hash_map.get(&coord) {
-                self.current_cell_iter = Some(pegs_in_cell.iter());
-                return true;
-            }
-        }
-
-        // Cell is empty or out of bounds, continue to next
-        self.advance_to_next_cell()
     }
 }
 
-impl<'a> Iterator for GridNeighborIterator<'a> {
+impl<'a> Iterator for NeighborIter<'a> {
     type Item = PegIndex;
 
     #[inline]

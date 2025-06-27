@@ -92,42 +92,13 @@ fn update_falling<T: NeighborStrategy>(
     pegs: &mut Pegs,
     physics: &mut PhysicsState<T>,
 ) -> Result<State, Error> {
-    physics::update_ball_physics_with_buffer(
-        ball,
-        pegs,
-        num!(DELTA_TIME),
-        physics,
-        None,
-    );
-
+    physics::update_ball(ball, pegs, num!(DELTA_TIME), physics);
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
     }
-
     Ok(State::Falling)
 }
 
-#[cfg(feature = "benchmark")]
-fn update_falling_with_benchmark<T: NeighborStrategy>(
-    ball: &mut Ball,
-    pegs: &mut Pegs,
-    physics: &mut PhysicsState<T>,
-    timers: &agb::timer::Timers,
-) -> Result<State, Error> {
-    physics::update_ball_physics_with_buffer(
-        ball,
-        pegs,
-        num!(DELTA_TIME),
-        physics,
-        Some(timers),
-    );
-
-    if ball.position.y > num!(SCREEN_BOTTOM) {
-        return Ok(State::Counting);
-    }
-
-    Ok(State::Falling)
-}
 
 fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
@@ -177,25 +148,11 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                 #[cfg(feature = "benchmark")]
                 {
                     bench::reset(&mut timers);
-                    bench::set_before(&timers)?;
-                    let state = update_falling_with_benchmark(
-                        &mut ball,
-                        &mut pegs,
-                        &mut physics,
-                        &timers,
-                    )?;
-                    bench::set_after(&timers)?;
-                    bench::log("TOTAL_PHYSICS")?;
-
-                    // Log detailed breakdown every 60 frames (1 second at 60fps)
-                    static mut FRAME_COUNTER: u32 = 0;
-                    unsafe {
-                        FRAME_COUNTER += 1;
-                        if FRAME_COUNTER % 60 == 0 {
-                            bench::log_physics_breakdown();
-                        }
-                    }
-
+                    bench::set_timers(&timers);
+                    bench::set_before(&timers);
+                    let state = update_falling(&mut ball, &mut pegs, &mut physics)?;
+                    bench::set_after(&timers);
+                    bench::log("TOTAL_PHYSICS");
                     state
                 }
                 #[cfg(not(feature = "benchmark"))]
