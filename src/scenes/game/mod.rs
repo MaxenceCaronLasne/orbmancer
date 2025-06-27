@@ -4,10 +4,8 @@ use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
-use alloc::alloc::Global;
-use alloc::vec::Vec;
 use ball::Ball;
-use peg::Peg;
+use peg::Pegs;
 
 pub mod ball;
 pub mod peg;
@@ -33,7 +31,7 @@ struct GameState {
     right_pressed: bool,
 }
 
-fn spawn_pegs(pegs: &mut Vec<Peg>, rng: &mut RandomNumberGenerator) {
+fn spawn_pegs(pegs: &mut Pegs, rng: &mut RandomNumberGenerator) {
     let peg_count = 20;
     let screen_width = 140;
     let screen_height = 120;
@@ -49,7 +47,7 @@ fn spawn_pegs(pegs: &mut Vec<Peg>, rng: &mut RandomNumberGenerator) {
         let force_radius =
             Fixed::new(peg::FORCE_RADII[force_radius_index] as i32);
 
-        pegs.push(Peg::new(vec2(Fixed::new(x), Fixed::new(y)), force_radius));
+        pegs.add_peg(vec2(Fixed::new(x), Fixed::new(y)), force_radius);
     }
 }
 
@@ -98,8 +96,8 @@ fn update_aiming(
     Ok(State::Aiming)
 }
 
-fn update_falling(ball: &mut Ball, pegs: &mut [Peg]) -> Result<State, Error> {
-    physics::move_and_collide(ball, pegs, num!(DELTA_TIME));
+fn update_falling(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
+    physics::update_ball_physics(ball, pegs, num!(DELTA_TIME));
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
@@ -108,12 +106,13 @@ fn update_falling(ball: &mut Ball, pegs: &mut [Peg]) -> Result<State, Error> {
     Ok(State::Falling)
 }
 
-fn update_counting(
-    ball: &mut Ball,
-    pegs: &mut Vec<Peg>,
-) -> Result<State, Error> {
+fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
-    pegs.retain(|p| !p.is_touched());
+    for i in 0..pegs.count {
+        if pegs.is_touched(i) {
+            pegs.present[i] = false;
+        }
+    }
     Ok(State::Aiming)
 }
 
@@ -129,7 +128,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut input = ButtonController::new();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
-    let mut pegs = Vec::<Peg>::new_in(Global);
+    let mut pegs = Pegs::new();
     let mut rng = RandomNumberGenerator::new();
 
     spawn_pegs(&mut pegs, &mut rng);
@@ -148,8 +147,10 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         };
 
         let mut frame = gfx.frame();
-        for p in pegs.iter_mut() {
-            p.show(&mut frame);
+        for i in 0..pegs.count {
+            if pegs.present[i] {
+                pegs.show(i, &mut frame);
+            }
         }
         ball.show(&mut frame);
         frame.commit();
