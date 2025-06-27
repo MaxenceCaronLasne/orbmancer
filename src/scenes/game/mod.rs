@@ -1,11 +1,12 @@
 use crate::bench;
 use crate::error::Error;
 use crate::scenes::Scene;
+use crate::scenes::game::physics::PhysicsState;
+use crate::scenes::game::physics::grid::NeighborStrategy;
 use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
-use agb::timer::Timer;
 use ball::Ball;
 use peg::Pegs;
 
@@ -73,19 +74,6 @@ fn update_aiming(
             .min(num!(MAX_HORIZONTAL_VELOCITY));
     }
 
-    if game_state.left_pressed && !left_currently_pressed {
-        agb::println!(
-            "Horizontal velocity: {}",
-            game_state.horizontal_velocity
-        );
-    }
-    if game_state.right_pressed && !right_currently_pressed {
-        agb::println!(
-            "Horizontal velocity: {}",
-            game_state.horizontal_velocity
-        );
-    }
-
     game_state.left_pressed = left_currently_pressed;
     game_state.right_pressed = right_currently_pressed;
 
@@ -98,8 +86,12 @@ fn update_aiming(
     Ok(State::Aiming)
 }
 
-fn update_falling(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
-    physics::update_ball_physics(ball, pegs, num!(DELTA_TIME));
+fn update_falling<T: NeighborStrategy>(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    physics: &PhysicsState<T>,
+) -> Result<State, Error> {
+    physics::update_ball_physics(ball, pegs, num!(DELTA_TIME), physics);
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
@@ -136,14 +128,16 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     spawn_pegs(&mut pegs, &mut rng);
 
+    let physics = physics::new(&pegs);
+
     loop {
         input.update();
 
-        bench::reset(&mut timers);
-        bench::set_before(&timers)?;
-        physics::update_peg_physics(&mut pegs, num!(DELTA_TIME));
-        bench::set_after(&timers)?;
-        bench::log("PEG")?;
+        // bench::reset(&mut timers);
+        // bench::set_before(&timers)?;
+        // physics::update_peg_physics(&mut pegs, num!(DELTA_TIME));
+        // bench::set_after(&timers)?;
+        // bench::log("PEG")?;
 
         state = match state {
             State::Aiming => {
@@ -152,7 +146,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
             State::Falling => {
                 bench::reset(&mut timers);
                 bench::set_before(&timers)?;
-                let state = update_falling(&mut ball, &mut pegs)?;
+                let state = update_falling(&mut ball, &mut pegs, &physics)?;
                 bench::set_after(&timers)?;
                 bench::log("BALL")?;
                 state

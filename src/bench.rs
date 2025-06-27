@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-const LOG_FREQUENCY: u16 = 300;
+const LOG_FREQUENCY: u16 = 100;
 
 static mut BENCHMARK: Benchmark = Benchmark {
     before: None,

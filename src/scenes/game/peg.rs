@@ -19,7 +19,6 @@ pub struct Pegs {
     pub sprites: [Object; MAX_PEGS],
     pub touched: [bool; MAX_PEGS],
     pub present: [bool; MAX_PEGS],
-    pub grid_cells: [u8; MAX_PEGS],
     pub count: usize,
 }
 
@@ -33,7 +32,6 @@ impl Pegs {
             }),
             touched: [false; MAX_PEGS],
             present: [false; MAX_PEGS],
-            grid_cells: [0; MAX_PEGS],
             count: 0,
         }
     }

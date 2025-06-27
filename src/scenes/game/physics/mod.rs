@@ -1,13 +1,12 @@
+use crate::error::Error;
 use crate::scenes::game::peg::MAX_PEGS;
 use crate::scenes::game::{ball, peg};
 use crate::scenes::game::{ball::Ball, peg::Pegs};
 use crate::types::{Coordinate, Fixed, Force};
 use agb::fixnum::{num, vec2};
-use grid::{
-    GridNeighborStrategy, NaiveNeighborStrategy, NeighborStrategy, SpatialGrid,
-};
+use grid::{Grid, NeighborStrategy};
 
-mod grid;
+pub mod grid;
 
 const GRAVITY_Y: f32 = 200.0;
 const LEFT_WALL: f32 = 0.0;
@@ -24,6 +23,20 @@ const PEG_MOVEMENT_RIGHT_BOUND: f32 = 150.0;
 const PEG_MOVEMENT_TOP_BOUND: f32 = 20.0;
 const PEG_MOVEMENT_BOTTOM_BOUND: f32 = 140.0;
 
+pub struct PhysicsState<T: NeighborStrategy> {
+    neighbor_strategy: T,
+}
+
+impl<T: NeighborStrategy> PhysicsState<T> {
+    pub fn new(neighbor_strategy: T) -> Self {
+        Self { neighbor_strategy }
+    }
+}
+
+pub fn new(pegs: &Pegs) -> PhysicsState<Grid> {
+    PhysicsState::new(Grid::new(pegs))
+}
+
 fn handle_ball_wall_collisions(ball: &mut Ball) {
     let ball_radius = num!(ball::RADIUS);
 
@@ -36,21 +49,25 @@ fn handle_ball_wall_collisions(ball: &mut Ball) {
     }
 }
 
-fn handle_ball_peg_collisions(ball: &mut Ball, pegs: &mut Pegs) {
+fn handle_ball_peg_collisions<T: NeighborStrategy>(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    strategy: &T,
+) {
     let ball_radius = num!(ball::RADIUS);
     let peg_radius = num!(peg::RADIUS);
 
-    for i in 0..pegs.count {
-        if pegs.is_touched(i) {
+    for peg_id in strategy.get_neighbors(ball.position) {
+        if peg_id >= pegs.count || pegs.is_touched(peg_id) {
             continue;
         }
 
-        let distance_vector = ball.position - pegs.positions[i];
+        let distance_vector = ball.position - pegs.positions[peg_id];
         let distance = distance_vector.magnitude();
         let collision_distance = ball_radius + peg_radius;
 
         if distance < collision_distance && distance > num!(ZERO) {
-            pegs.touch(i);
+            pegs.touch(peg_id);
             let normal = distance_vector / distance;
             let velocity_along_normal = ball.velocity.dot(normal);
 
@@ -111,10 +128,11 @@ fn apply_peg_force_pair(
     force_buffer[id_b] += force_on_b;
 }
 
-pub fn update_ball_physics(
+pub fn update_ball_physics<T: NeighborStrategy>(
     ball: &mut Ball,
     pegs: &mut Pegs,
     delta_time: Fixed,
+    state: &PhysicsState<T>,
 ) {
     let initial_position = ball.position;
     let initial_velocity = ball.velocity;
@@ -130,16 +148,16 @@ pub fn update_ball_physics(
         return;
     }
 
-    handle_ball_peg_collisions(ball, pegs);
+    handle_ball_peg_collisions(ball, pegs, &state.neighbor_strategy);
 }
 
-pub fn update_peg_physics_with_strategy(
+pub fn update_peg_physics<T: NeighborStrategy>(
     pegs: &mut Pegs,
     delta_time: Fixed,
-    strategy: &dyn NeighborStrategy,
-) {
+    state: &PhysicsState<T>,
+) -> Result<(), Error> {
     if pegs.count < 2 {
-        return;
+        return Ok(());
     }
 
     let mut force_buffer = [vec2(num!(0.0), num!(0.0)); MAX_PEGS];
@@ -149,8 +167,9 @@ pub fn update_peg_physics_with_strategy(
             continue;
         }
 
-        let neighbors = strategy.get_neighbors(i, pegs);
-        for &neighbor_id in neighbors.iter() {
+        for neighbor_id in
+            state.neighbor_strategy.get_neighbors(pegs.positions[i])
+        {
             if neighbor_id <= i {
                 continue;
             }
@@ -158,6 +177,7 @@ pub fn update_peg_physics_with_strategy(
         }
     }
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..pegs.count {
         if !pegs.present[i] {
             continue;
@@ -174,17 +194,7 @@ pub fn update_peg_physics_with_strategy(
             num!(PEG_MOVEMENT_TOP_BOUND),
             num!(PEG_MOVEMENT_BOTTOM_BOUND),
         );
-
-        pegs.grid_cells[i] = SpatialGrid::hash_position(
-            pegs.positions[i].x,
-            pegs.positions[i].y,
-        );
     }
-}
 
-pub fn update_peg_physics(pegs: &mut Pegs, delta_time: Fixed) {
-    // let mut strategy = NaiveNeighborStrategy::new();
-    let mut strategy = GridNeighborStrategy::new();
-    strategy.populate_grid(pegs);
-    update_peg_physics_with_strategy(pegs, delta_time, &strategy);
+    Ok(())
 }
