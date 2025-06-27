@@ -1,3 +1,4 @@
+#[cfg(feature = "benchmark")]
 use crate::bench;
 use crate::error::Error;
 use crate::scenes::Scene;
@@ -100,6 +101,22 @@ fn update_falling<T: NeighborStrategy>(
     Ok(State::Falling)
 }
 
+#[cfg(feature = "benchmark")]
+fn update_falling_with_benchmark<T: NeighborStrategy>(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    physics: &PhysicsState<T>,
+    timers: &agb::timer::Timers,
+) -> Result<State, Error> {
+    physics::update_ball_physics_with_timers(ball, pegs, num!(DELTA_TIME), physics, Some(timers));
+
+    if ball.position.y > num!(SCREEN_BOTTOM) {
+        return Ok(State::Counting);
+    }
+
+    Ok(State::Falling)
+}
+
 fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
     for i in 0..pegs.count {
@@ -120,6 +137,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
+    #[cfg(feature = "benchmark")]
     let mut timers = gba.timers.timers();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
@@ -144,12 +162,29 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                 update_aiming(&mut input, &mut game_state, &mut ball)?
             }
             State::Falling => {
-                bench::reset(&mut timers);
-                bench::set_before(&timers)?;
-                let state = update_falling(&mut ball, &mut pegs, &physics)?;
-                bench::set_after(&timers)?;
-                bench::log("BALL")?;
-                state
+                #[cfg(feature = "benchmark")]
+                {
+                    bench::reset(&mut timers);
+                    bench::set_before(&timers)?;
+                    let state = update_falling_with_benchmark(&mut ball, &mut pegs, &physics, &timers)?;
+                    bench::set_after(&timers)?;
+                    bench::log("TOTAL_PHYSICS")?;
+                    
+                    // Log detailed breakdown every 60 frames (1 second at 60fps)
+                    static mut FRAME_COUNTER: u32 = 0;
+                    unsafe {
+                        FRAME_COUNTER += 1;
+                        if FRAME_COUNTER % 60 == 0 {
+                            bench::log_physics_breakdown();
+                        }
+                    }
+                    
+                    state
+                }
+                #[cfg(not(feature = "benchmark"))]
+                {
+                    update_falling(&mut ball, &mut pegs, &physics)?
+                }
             }
             State::Counting => update_counting(&mut ball, &mut pegs)?,
         };

@@ -1,5 +1,6 @@
 use crate::scenes::game::{ball, Ball, peg::Pegs};
 use agb::fixnum::num;
+use alloc::vec::Vec;
 
 use super::constants::{
     LEFT_WALL, RIGHT_WALL, WALL_BOUNCE_DAMPING, ZERO,
@@ -31,12 +32,65 @@ pub fn handle_ball_peg_collisions<T: NeighborStrategy>(
     strategy: &T,
     config: &PhysicsConfig,
 ) {
+    handle_ball_peg_collisions_with_timers(ball, pegs, strategy, config, None)
+}
+
+/// Handle ball collisions with pegs with optional timer for benchmarking
+pub fn handle_ball_peg_collisions_with_timers<T: NeighborStrategy>(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    strategy: &T,
+    config: &PhysicsConfig,
+    #[cfg(feature = "benchmark")]
+    timers: Option<&agb::timer::Timers>,
+    #[cfg(not(feature = "benchmark"))]
+    _timers: Option<&agb::timer::Timers>,
+) {
     let ball_radius = num!(ball::RADIUS);
     let peg_radius = num!(crate::scenes::game::peg::RADIUS);
     let collision_distance = ball_radius + peg_radius;
     let collision_distance_squared = collision_distance * collision_distance;
 
-    for peg_id in strategy.get_neighbors(ball.position) {
+    #[cfg(feature = "benchmark")]
+    let neighbors: Vec<_> = if let Some(timers) = timers {
+        super::bench::PhysicsBench::measure_grid_query(timers, || {
+            strategy.get_neighbors(ball.position).collect()
+        })
+    } else {
+        strategy.get_neighbors(ball.position).collect()
+    };
+
+    #[cfg(not(feature = "benchmark"))]
+    let neighbors: Vec<_> = strategy.get_neighbors(ball.position).collect();
+
+    #[cfg(feature = "benchmark")]
+    let collision_check = |ball: &mut Ball, pegs: &mut Pegs| {
+        if let Some(timers) = timers {
+            super::bench::PhysicsBench::measure_collision(timers, || {
+                perform_collision_checks(ball, pegs, &neighbors, collision_distance_squared, config)
+            })
+        } else {
+            perform_collision_checks(ball, pegs, &neighbors, collision_distance_squared, config)
+        }
+    };
+
+    #[cfg(not(feature = "benchmark"))]
+    let collision_check = |ball: &mut Ball, pegs: &mut Pegs| {
+        perform_collision_checks(ball, pegs, &neighbors, collision_distance_squared, config)
+    };
+
+    collision_check(ball, pegs);
+}
+
+/// Perform the actual collision detection and response
+fn perform_collision_checks(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    neighbors: &[usize],
+    collision_distance_squared: crate::types::Fixed,
+    config: &PhysicsConfig,
+) {
+    for &peg_id in neighbors {
         if peg_id >= pegs.count || pegs.is_touched(peg_id) {
             continue;
         }
@@ -48,6 +102,7 @@ pub fn handle_ball_peg_collisions<T: NeighborStrategy>(
             pegs.touch(peg_id);
             
             // Only compute expensive sqrt when collision is confirmed
+            let collision_distance = (collision_distance_squared).sqrt();
             let distance = distance_squared.sqrt();
             let normal = distance_vector / distance;
             let velocity_along_normal = ball.velocity.dot(normal);

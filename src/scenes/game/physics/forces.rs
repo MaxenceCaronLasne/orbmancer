@@ -84,6 +84,20 @@ pub fn update_peg_physics<T: NeighborStrategy>(
     strategy: &T,
     config: &PhysicsConfig,
 ) {
+    update_peg_physics_with_timers(pegs, delta_time, strategy, config, None)
+}
+
+/// Update peg physics with optional timer for benchmarking
+pub fn update_peg_physics_with_timers<T: NeighborStrategy>(
+    pegs: &mut Pegs,
+    delta_time: Fixed,
+    strategy: &T,
+    config: &PhysicsConfig,
+    #[cfg(feature = "benchmark")]
+    timers: Option<&agb::timer::Timers>,
+    #[cfg(not(feature = "benchmark"))]
+    _timers: Option<&agb::timer::Timers>,
+) {
     if pegs.count < 2 {
         return;
     }
@@ -91,37 +105,102 @@ pub fn update_peg_physics<T: NeighborStrategy>(
     let mut force_buffer = [vec2(num!(0.0), num!(0.0)); MAX_PEGS];
 
     // Calculate forces between nearby pegs
-    for i in 0..pegs.count {
-        if !pegs.present[i] {
-            continue;
-        }
-
-        for neighbor_id in strategy.get_neighbors(pegs.positions[i]) {
-            if neighbor_id <= i {
-                continue; // Avoid duplicate calculations
+    #[cfg(feature = "benchmark")]
+    let mut force_calculation = || {
+        for i in 0..pegs.count {
+            if !pegs.present[i] {
+                continue;
             }
-            apply_peg_force_pair(pegs, &mut force_buffer, i, neighbor_id, config);
+
+            for neighbor_id in strategy.get_neighbors(pegs.positions[i]) {
+                if neighbor_id <= i {
+                    continue; // Avoid duplicate calculations
+                }
+                apply_peg_force_pair(pegs, &mut force_buffer, i, neighbor_id, config);
+            }
         }
+    };
+
+    #[cfg(not(feature = "benchmark"))]
+    let mut force_calculation = || {
+        for i in 0..pegs.count {
+            if !pegs.present[i] {
+                continue;
+            }
+
+            for neighbor_id in strategy.get_neighbors(pegs.positions[i]) {
+                if neighbor_id <= i {
+                    continue; // Avoid duplicate calculations
+                }
+                apply_peg_force_pair(pegs, &mut force_buffer, i, neighbor_id, config);
+            }
+        }
+    };
+
+    #[cfg(feature = "benchmark")]
+    if let Some(timers) = timers {
+        super::bench::PhysicsBench::measure_force_calculation(timers, force_calculation);
+    } else {
+        force_calculation();
     }
+
+    #[cfg(not(feature = "benchmark"))]
+    force_calculation();
 
     // Apply forces as velocity changes and clamp to boundaries
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..pegs.count {
-        if !pegs.present[i] {
-            continue;
+    #[cfg(feature = "benchmark")]
+    let mut position_update = || {
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..pegs.count {
+            if !pegs.present[i] {
+                continue;
+            }
+
+            let velocity_change = force_buffer[i] * delta_time;
+            pegs.positions[i] += velocity_change;
+
+            // Clamp peg positions to movement boundaries
+            pegs.positions[i].x = pegs.positions[i].x.clamp(
+                num!(PEG_MOVEMENT_LEFT_BOUND),
+                num!(PEG_MOVEMENT_RIGHT_BOUND),
+            );
+            pegs.positions[i].y = pegs.positions[i].y.clamp(
+                num!(PEG_MOVEMENT_TOP_BOUND),
+                num!(PEG_MOVEMENT_BOTTOM_BOUND),
+            );
         }
+    };
 
-        let velocity_change = force_buffer[i] * delta_time;
-        pegs.positions[i] += velocity_change;
+    #[cfg(not(feature = "benchmark"))]
+    let mut position_update = || {
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..pegs.count {
+            if !pegs.present[i] {
+                continue;
+            }
 
-        // Clamp peg positions to movement boundaries
-        pegs.positions[i].x = pegs.positions[i].x.clamp(
-            num!(PEG_MOVEMENT_LEFT_BOUND),
-            num!(PEG_MOVEMENT_RIGHT_BOUND),
-        );
-        pegs.positions[i].y = pegs.positions[i].y.clamp(
-            num!(PEG_MOVEMENT_TOP_BOUND),
-            num!(PEG_MOVEMENT_BOTTOM_BOUND),
-        );
+            let velocity_change = force_buffer[i] * delta_time;
+            pegs.positions[i] += velocity_change;
+
+            // Clamp peg positions to movement boundaries
+            pegs.positions[i].x = pegs.positions[i].x.clamp(
+                num!(PEG_MOVEMENT_LEFT_BOUND),
+                num!(PEG_MOVEMENT_RIGHT_BOUND),
+            );
+            pegs.positions[i].y = pegs.positions[i].y.clamp(
+                num!(PEG_MOVEMENT_TOP_BOUND),
+                num!(PEG_MOVEMENT_BOTTOM_BOUND),
+            );
+        }
+    };
+
+    #[cfg(feature = "benchmark")]
+    if let Some(timers) = timers {
+        super::bench::PhysicsBench::measure_peg_update(timers, position_update);
+    } else {
+        position_update();
     }
+
+    #[cfg(not(feature = "benchmark"))]
+    position_update();
 }

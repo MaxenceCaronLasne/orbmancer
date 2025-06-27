@@ -3,7 +3,13 @@ use agb::{display::GraphicsFrame, input::ButtonController};
 
 mod physics_test;
 
+#[cfg(feature = "benchmark")]
+mod physics_bench;
+
 pub use physics_test::PhysicsTest;
+
+#[cfg(feature = "benchmark")]
+pub use physics_bench::PhysicsBench;
 
 /// Trait for test scenes that can be run in isolation
 pub trait TestScene {

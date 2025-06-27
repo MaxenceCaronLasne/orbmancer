@@ -9,6 +9,10 @@ edition = "2024"
 [dependencies]
 agb = "0.22.2"
 
+[features]
+default = []
+benchmark = []
+
 [profile.dev]
 opt-level = 3
 debug = true

@@ -87,6 +87,9 @@ pub mod forces;
 pub mod grid;
 pub mod state;
 
+#[cfg(feature = "benchmark")]
+pub mod bench;
+
 // Tests removed - AGB framework doesn't support standard test crate in no_std environment
 
 // Re-export main API for users
@@ -95,6 +98,7 @@ pub use constants::{
 };
 pub use grid::{Grid, NeighborStrategy};
 pub use state::{
-    PhysicsState, new, update_ball_physics, 
-    update_peg_physics_with_grid, update_peg_physics_generic
+    PhysicsState, new, update_ball_physics, update_ball_physics_with_timers,
+    update_peg_physics_with_grid, update_peg_physics_with_grid_and_timers, 
+    update_peg_physics_generic
 };

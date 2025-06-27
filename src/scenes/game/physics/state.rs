@@ -4,8 +4,8 @@ use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 
 use super::constants::{PhysicsConfig, SCREEN_BOTTOM, ZERO};
-use super::collision::{handle_ball_wall_collisions, handle_ball_peg_collisions};
-use super::forces::update_peg_physics;
+use super::collision::{handle_ball_wall_collisions, handle_ball_peg_collisions, handle_ball_peg_collisions_with_timers};
+use super::forces::{update_peg_physics, update_peg_physics_with_timers};
 use super::grid::{Grid, NeighborStrategy};
 
 /// Physics state that manages spatial optimization strategy
@@ -105,6 +105,39 @@ pub fn update_ball_physics<T: NeighborStrategy>(
     handle_ball_peg_collisions(ball, pegs, &state.neighbor_strategy, &state.config);
 }
 
+/// Update ball physics with benchmarking support
+pub fn update_ball_physics_with_timers<T: NeighborStrategy>(
+    ball: &mut Ball,
+    pegs: &mut Pegs,
+    delta_time: Fixed,
+    state: &PhysicsState<T>,
+    #[cfg(feature = "benchmark")]
+    timers: Option<&agb::timer::Timers>,
+    #[cfg(not(feature = "benchmark"))]
+    _timers: Option<&agb::timer::Timers>,
+) {
+    let initial_position = ball.position;
+    let initial_velocity = ball.velocity;
+
+    // Apply gravity and update position
+    ball.velocity = initial_velocity + vec2(num!(0), state.config.gravity_y) * delta_time;
+    ball.position = initial_position + ball.velocity * delta_time;
+
+    handle_ball_wall_collisions(ball);
+
+    // Reset ball if it falls below screen
+    if ball.position.y > num!(SCREEN_BOTTOM) {
+        ball.velocity = vec2(num!(ZERO), num!(ZERO));
+        return;
+    }
+
+    #[cfg(feature = "benchmark")]
+    handle_ball_peg_collisions_with_timers(ball, pegs, &state.neighbor_strategy, &state.config, timers);
+    
+    #[cfg(not(feature = "benchmark"))]
+    handle_ball_peg_collisions_with_timers(ball, pegs, &state.neighbor_strategy, &state.config, _timers);
+}
+
 /// Update peg physics and refresh spatial grid for optimal performance
 /// 
 /// This is the recommended function for Grid-based physics as it automatically
@@ -138,6 +171,27 @@ pub fn update_peg_physics_with_grid(
     state: &mut PhysicsState<Grid>,
 ) -> Result<(), Error> {
     update_peg_physics(pegs, delta_time, &state.neighbor_strategy, &state.config);
+    state.update_grid(pegs);
+    Ok(())
+}
+
+/// Update peg physics and refresh spatial grid with benchmarking support
+#[must_use = "Physics update result should be checked for errors"]
+pub fn update_peg_physics_with_grid_and_timers(
+    pegs: &mut Pegs,
+    delta_time: Fixed,
+    state: &mut PhysicsState<Grid>,
+    #[cfg(feature = "benchmark")]
+    timers: Option<&agb::timer::Timers>,
+    #[cfg(not(feature = "benchmark"))]
+    _timers: Option<&agb::timer::Timers>,
+) -> Result<(), Error> {
+    #[cfg(feature = "benchmark")]
+    update_peg_physics_with_timers(pegs, delta_time, &state.neighbor_strategy, &state.config, timers);
+    
+    #[cfg(not(feature = "benchmark"))]
+    update_peg_physics_with_timers(pegs, delta_time, &state.neighbor_strategy, &state.config, _timers);
+    
     state.update_grid(pegs);
     Ok(())
 }
