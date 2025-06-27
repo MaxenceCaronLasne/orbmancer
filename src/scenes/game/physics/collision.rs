@@ -5,7 +5,6 @@ use agb::fixnum::num;
 use super::constants::{
     LEFT_WALL, PhysicsConfig, RIGHT_WALL, WALL_BOUNCE_DAMPING, ZERO,
 };
-use super::grid::NeighborStrategy;
 
 pub fn handle_ball_wall_collisions(ball: &mut Ball) {
     let ball_radius = num!(ball::RADIUS);
@@ -19,22 +18,22 @@ pub fn handle_ball_wall_collisions(ball: &mut Ball) {
     }
 }
 
-pub fn handle_ball_peg_collisions<T: NeighborStrategy>(
+pub fn handle_ball_peg_collisions(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics_state: &mut super::state::PhysicsState<T>,
+    physics_state: &mut super::state::PhysicsState,
 ) {
     let ball_radius = num!(ball::RADIUS);
     let peg_radius = num!(crate::scenes::game::peg::RADIUS);
     let collision_distance = ball_radius + peg_radius;
     let collision_distance_squared = collision_distance * collision_distance;
 
-    crate::bench::bench_start_grid();
+    crate::bench::start("GRID");
     let neighbor_count = physics_state.fill_neighbors(ball.position);
-    crate::bench::bench_end_grid();
+    crate::bench::stop("GRID");
 
     let neighbors = physics_state.neighbors(neighbor_count);
-    crate::bench::bench_start_collision();
+    crate::bench::start("COLLISION");
     check_collisions(
         ball,
         pegs,
@@ -42,7 +41,7 @@ pub fn handle_ball_peg_collisions<T: NeighborStrategy>(
         collision_distance_squared,
         physics_state.config(),
     );
-    crate::bench::bench_end_collision();
+    crate::bench::stop("COLLISION");
 }
 
 #[inline]
@@ -58,11 +57,14 @@ fn check_collisions(
             continue;
         }
         let distance_vector = ball.position - pegs.position(peg_id);
+        crate::bench::start("DISTANCE_CALC");
         let distance_squared = distance_vector.magnitude_squared();
+        crate::bench::stop("DISTANCE_CALC");
         if distance_squared < collision_distance_squared
             && distance_squared > num!(ZERO)
         {
             pegs.touch(peg_id);
+            crate::bench::start("COLLISION_RESPONSE");
             let collision_distance = (collision_distance_squared).sqrt();
             let distance = distance_squared.sqrt();
             let normal = distance_vector / distance;
@@ -71,6 +73,7 @@ fn check_collisions(
             ball.velocity *= config.peg_bounce_damping;
             let overlap = collision_distance - distance;
             ball.position += normal * overlap;
+            crate::bench::stop("COLLISION_RESPONSE");
         }
     }
 }

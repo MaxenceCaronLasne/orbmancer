@@ -1,9 +1,6 @@
-#[cfg(feature = "benchmark")]
-use crate::bench;
 use crate::error::Error;
 use crate::scenes::Scene;
 use crate::scenes::game::physics::PhysicsState;
-use crate::scenes::game::physics::grid::NeighborStrategy;
 use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
@@ -87,18 +84,20 @@ fn update_aiming(
     Ok(State::Aiming)
 }
 
-fn update_falling<T: NeighborStrategy>(
+fn update_falling(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics: &mut PhysicsState<T>,
+    physics: &mut PhysicsState,
 ) -> Result<State, Error> {
+    crate::bench::start("BALL");
     physics::update_ball(ball, pegs, num!(DELTA_TIME), physics);
+    crate::bench::stop("BALL");
+
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
     }
     Ok(State::Falling)
 }
-
 
 fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
@@ -120,7 +119,6 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
-    #[cfg(feature = "benchmark")]
     let mut timers = gba.timers.timers();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
@@ -129,38 +127,27 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     spawn_pegs(&mut pegs, &mut rng);
 
-    let mut physics = physics::new(&pegs);
+    let mut physics = physics::PhysicsState::new(&pegs);
+
+    crate::bench::init(&mut timers);
 
     loop {
         input.update();
-
-        // bench::reset(&mut timers);
-        // bench::set_before(&timers)?;
-        // physics::update_peg_physics(&mut pegs, num!(DELTA_TIME));
-        // bench::set_after(&timers)?;
-        // bench::log("PEG")?;
 
         state = match state {
             State::Aiming => {
                 update_aiming(&mut input, &mut game_state, &mut ball)?
             }
             State::Falling => {
-                #[cfg(feature = "benchmark")]
-                {
-                    bench::reset(&mut timers);
-                    bench::set_timers(&timers);
-                    bench::set_before(&timers);
-                    let state = update_falling(&mut ball, &mut pegs, &mut physics)?;
-                    bench::set_after(&timers);
-                    bench::log("TOTAL_PHYSICS");
-                    state
-                }
-                #[cfg(not(feature = "benchmark"))]
-                {
-                    update_falling(&mut ball, &mut pegs, &mut physics)?
-                }
+                crate::bench::start("FALLING");
+                let state = update_falling(&mut ball, &mut pegs, &mut physics)?;
+                crate::bench::stop("FALLING");
+                state
             }
-            State::Counting => update_counting(&mut ball, &mut pegs)?,
+            State::Counting => {
+                crate::bench::log();
+                update_counting(&mut ball, &mut pegs)?
+            }
         };
 
         let mut frame = gfx.frame();

@@ -1,125 +1,161 @@
-static mut GRID_START: Option<(u16, u16)> = None;
-static mut COLLISION_START: Option<(u16, u16)> = None;
-static mut TIMERS: Option<*const agb::timer::Timers> = None;
-static mut GRID_TIME: u32 = 0;
-static mut COLLISION_TIME: u32 = 0;
-static mut FRAME_BEFORE: Option<(u16, u16)> = None;
-static mut FRAME_AFTER: Option<(u16, u16)> = None;
+use agb::timer::Timers;
 
-fn start(timers: &agb::timer::Timers) -> (u16, u16) {
-    (timers.timer3.value(), timers.timer2.value())
+const MAX_BENCHMARKS: usize = 16;
+const MAX_STACK_DEPTH: usize = 8;
+
+#[derive(Copy, Clone)]
+struct BenchEntry {
+    tag: &'static str,
+    total_time: u32,
+    count: u32,
 }
 
-fn stop(start_time: (u16, u16), timers: &agb::timer::Timers) -> u32 {
-    let after = (timers.timer3.value(), timers.timer2.value());
-    let before_val: u32 = ((start_time.0 as u32) << 16) + (start_time.1 as u32);
-    let after_val: u32 = ((after.0 as u32) << 16) + (after.1 as u32);
-    after_val.wrapping_sub(before_val)
+#[derive(Copy, Clone)]
+struct TimerFrame {
+    tag: &'static str,
+    start_time: (u16, u16),
 }
 
-pub fn reset(timers: &mut agb::timer::Timers) {
+static mut TIMERS: Option<*const Timers> = None;
+static mut BENCHMARKS: [Option<BenchEntry>; MAX_BENCHMARKS] =
+    [None; MAX_BENCHMARKS];
+static mut TIMER_STACK: [Option<TimerFrame>; MAX_STACK_DEPTH] =
+    [None; MAX_STACK_DEPTH];
+static mut STACK_TOP: usize = 0;
+
+pub fn init(timers: &mut Timers) {
     unsafe {
-        GRID_TIME = 0;
-        COLLISION_TIME = 0;
-        FRAME_BEFORE = None;
-        FRAME_AFTER = None;
         TIMERS = Some(core::mem::transmute(timers as *const _));
+        for i in 0..MAX_BENCHMARKS {
+            BENCHMARKS[i] = None;
+        }
+        for i in 0..MAX_STACK_DEPTH {
+            TIMER_STACK[i] = None;
+        }
+        STACK_TOP = 0;
     }
+
     timers.timer3.set_cascade(true);
     timers.timer3.set_enabled(true);
     timers.timer2.set_enabled(true);
 }
 
-pub fn set_timers(timers: &agb::timer::Timers) {
+#[cfg(feature = "benchmark")]
+pub fn start(tag: &'static str) {
     unsafe {
-        TIMERS = Some(core::mem::transmute(timers as *const _));
-    }
-}
+        if let Some(timers_ptr) = TIMERS {
+            let timers = &*timers_ptr;
+            let start_time = (timers.timer3.value(), timers.timer2.value());
 
-pub fn set_before(timers: &agb::timer::Timers) {
-    unsafe {
-        FRAME_BEFORE = Some(start(timers));
-    }
-}
-
-pub fn set_after(timers: &agb::timer::Timers) {
-    unsafe {
-        FRAME_AFTER = Some(start(timers));
-    }
-}
-
-pub fn log(tag: &str) {
-    unsafe {
-        if let (Some(before), Some(after)) = (FRAME_BEFORE, FRAME_AFTER) {
-            let before_val: u32 = ((before.0 as u32) << 16) + (before.1 as u32);
-            let after_val: u32 = ((after.0 as u32) << 16) + (after.1 as u32);
-            let result = after_val.wrapping_sub(before_val);
-            
-            if tag == "TOTAL_PHYSICS" {
-                let grid_time = GRID_TIME;
-                let collision_time = COLLISION_TIME;
-                agb::println!("[BENCH][{}] {} [Grid:{} Collision:{}]", tag, result, grid_time, collision_time);
+            if STACK_TOP < MAX_STACK_DEPTH {
+                TIMER_STACK[STACK_TOP] = Some(TimerFrame { tag, start_time });
+                STACK_TOP += 1;
             } else {
-                agb::println!("[BENCH][{}] {}", tag, result);
+                agb::println!("[BENCH] Stack overflow on start({})", tag);
             }
         }
     }
 }
 
 #[cfg(feature = "benchmark")]
-pub fn bench_start_grid() {
+pub fn stop(tag: &'static str) {
     unsafe {
         if let Some(timers_ptr) = TIMERS {
             let timers = &*timers_ptr;
-            GRID_START = Some(start(timers));
-        }
-    }
-}
+            let end_time = (timers.timer3.value(), timers.timer2.value());
 
-#[cfg(feature = "benchmark")]
-pub fn bench_end_grid() {
-    unsafe {
-        if let Some(timers_ptr) = TIMERS {
-            if let Some(start_time) = GRID_START {
-                let timers = &*timers_ptr;
-                let elapsed = stop(start_time, timers);
-                GRID_TIME = GRID_TIME.saturating_add(elapsed);
+            if STACK_TOP > 0 {
+                STACK_TOP -= 1;
+                if let Some(frame) = &TIMER_STACK[STACK_TOP] {
+                    if frame.tag == tag {
+                        let elapsed = calc_elapsed(frame.start_time, end_time);
+                        add_to_bench(tag, elapsed);
+                    } else {
+                        agb::println!("[BENCH] Mismatched stop({}) expected ({})", tag, frame.tag);
+                    }
+                    TIMER_STACK[STACK_TOP] = None;
+                } else {
+                    agb::println!("[BENCH] Empty stack on stop({})", tag);
+                }
+            } else {
+                agb::println!("[BENCH] Stack underflow on stop({})", tag);
             }
         }
     }
 }
 
 #[cfg(feature = "benchmark")]
-pub fn bench_start_collision() {
+pub fn log() {
     unsafe {
-        if let Some(timers_ptr) = TIMERS {
-            let timers = &*timers_ptr;
-            COLLISION_START = Some(start(timers));
+        agb::println!("[BENCH] Results:");
+        for i in 0..MAX_BENCHMARKS {
+            if let Some(entry) = BENCHMARKS[i] {
+                if entry.count > 0 {
+                    let avg = entry.total_time / entry.count;
+                    agb::println!(
+                        "  {}: {} total, {} calls, {} avg",
+                        entry.tag,
+                        entry.total_time,
+                        entry.count,
+                        avg
+                    );
+                }
+            }
+        }
+
+        for i in 0..MAX_BENCHMARKS {
+            BENCHMARKS[i] = None;
         }
     }
 }
 
 #[cfg(feature = "benchmark")]
-pub fn bench_end_collision() {
+fn calc_elapsed(start: (u16, u16), end: (u16, u16)) -> u32 {
+    let start_val: u32 = ((start.0 as u32) << 16) + (start.1 as u32);
+    let end_val: u32 = ((end.0 as u32) << 16) + (end.1 as u32);
+    
+    let elapsed = end_val.wrapping_sub(start_val);
+    
+    // Check for unrealistic values (likely timer overflow/underflow)
+    if elapsed > 1_000_000 {  // More than ~1M cycles is suspicious for short operations
+        0  // Return 0 for obviously invalid measurements
+    } else {
+        elapsed
+    }
+}
+
+#[cfg(feature = "benchmark")]
+fn add_to_bench(tag: &'static str, elapsed: u32) {
     unsafe {
-        if let Some(timers_ptr) = TIMERS {
-            if let Some(start_time) = COLLISION_START {
-                let timers = &*timers_ptr;
-                let elapsed = stop(start_time, timers);
-                COLLISION_TIME = COLLISION_TIME.saturating_add(elapsed);
+        for i in 0..MAX_BENCHMARKS {
+            if let Some(entry) = &mut BENCHMARKS[i] {
+                if entry.tag == tag {
+                    entry.total_time = entry.total_time.saturating_add(elapsed);
+                    entry.count += 1;
+                    return;
+                }
+            }
+        }
+
+        for i in 0..MAX_BENCHMARKS {
+            if BENCHMARKS[i].is_none() {
+                BENCHMARKS[i] = Some(BenchEntry {
+                    tag,
+                    total_time: elapsed,
+                    count: 1,
+                });
+                return;
             }
         }
     }
 }
 
 #[cfg(not(feature = "benchmark"))]
-pub fn bench_start_grid() {}
+pub fn start(_tag: &'static str) {}
 
 #[cfg(not(feature = "benchmark"))]
-pub fn bench_end_grid() {}
+pub fn stop(_tag: &'static str) {}
 
 #[cfg(not(feature = "benchmark"))]
-pub fn bench_start_collision() {}
+pub fn log() {}
 
-#[cfg(not(feature = "benchmark"))]
-pub fn bench_end_collision() {}
