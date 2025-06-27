@@ -1,8 +1,11 @@
+use crate::scenes::game::peg::MAX_PEGS;
 use crate::scenes::game::{ball, peg};
 use crate::scenes::game::{ball::Ball, peg::Pegs};
 use crate::types::{Coordinate, Fixed, Force};
 use agb::fixnum::{num, vec2};
-use grid::SpatialGrid;
+use grid::{GridNeighborStrategy, NeighborStrategy, SpatialGrid};
+
+mod grid;
 
 const GRAVITY_Y: f32 = 200.0;
 const LEFT_WALL: f32 = 0.0;
@@ -18,60 +21,6 @@ const PEG_MOVEMENT_LEFT_BOUND: f32 = 10.0;
 const PEG_MOVEMENT_RIGHT_BOUND: f32 = 150.0;
 const PEG_MOVEMENT_TOP_BOUND: f32 = 20.0;
 const PEG_MOVEMENT_BOTTOM_BOUND: f32 = 140.0;
-
-const MAX_PEGS: usize = 50;
-
-mod grid;
-
-// Lookup tables for expensive operations (commented out for now)
-// TODO: Implement fast sqrt/inv_sqrt using lookup tables for further optimization
-/*
-#[unsafe(link_section = ".iwram")]
-static SQRT_LUT: [u16; 256] = generate_sqrt_lut();
-#[unsafe(link_section = ".iwram")]
-static INV_SQRT_LUT: [u16; 256] = generate_inv_sqrt_lut();
-
-const fn generate_sqrt_lut() -> [u16; 256] {
-    let mut lut = [0u16; 256];
-    let mut i = 0;
-    while i < 256 {
-        // Approximate sqrt using bit manipulation
-        let mut x = i as u32;
-        let mut result = 0u32;
-        let mut bit = 1u32 << 14;
-
-        while bit > x {
-            bit >>= 2;
-        }
-
-        while bit != 0 {
-            if x >= result + bit {
-                x -= result + bit;
-                result = (result >> 1) + bit;
-            } else {
-                result >>= 1;
-            }
-            bit >>= 2;
-        }
-
-        lut[i] = result as u16;
-        i += 1;
-    }
-    lut
-}
-
-const fn generate_inv_sqrt_lut() -> [u16; 256] {
-    let mut lut = [0u16; 256];
-    let mut i = 1;
-    while i < 256 {
-        // Approximate 1/sqrt(i) * 256 for fixed point
-        lut[i] = (256 * 16) / generate_sqrt_lut()[i];
-        i += 1;
-    }
-    lut[0] = 0xFFFF; // Handle division by zero
-    lut
-}
-*/
 
 fn handle_ball_wall_collisions(ball: &mut Ball) {
     let ball_radius = num!(ball::RADIUS);
@@ -182,59 +131,28 @@ pub fn update_ball_physics(
     handle_ball_peg_collisions(ball, pegs);
 }
 
-pub fn update_peg_physics(pegs: &mut Pegs, delta_time: Fixed) {
+pub fn update_peg_physics_with_strategy(
+    pegs: &mut Pegs,
+    delta_time: Fixed,
+    strategy: &dyn NeighborStrategy,
+) {
     if pegs.count < 2 {
         return;
     }
 
-    let mut grid = SpatialGrid::new();
     let mut force_buffer = [vec2(num!(0.0), num!(0.0)); MAX_PEGS];
 
-    grid.clear();
     for i in 0..pegs.count {
-        if pegs.present[i] {
-            grid.insert(i as u8, pegs.grid_cells[i]);
-        }
-    }
-
-    for cell_idx in 0..grid::GRID_CELLS {
-        let count = grid.cell_counts[cell_idx] as usize;
-        if count == 0 {
+        if !pegs.present[i] {
             continue;
         }
 
-        for i in 0..count {
-            let id_a = grid.cells[cell_idx][i] as usize;
-            if !pegs.present[id_a] {
-                continue;
-            }
-
-            for j in (i + 1)..count {
-                let id_b = grid.cells[cell_idx][j] as usize;
-                if !pegs.present[id_b] {
-                    continue;
-                }
-
-                apply_peg_force_pair(pegs, &mut force_buffer, id_a, id_b);
-            }
-
-            let neighbors = grid.get_neighbor_cells(cell_idx as u8);
-            for &neighbor_cell in neighbors.iter() {
-                if neighbor_cell == 0xFF {
-                    break;
-                }
-
-                let neighbor_count =
-                    grid.cell_counts[neighbor_cell as usize] as usize;
-                for k in 0..neighbor_count {
-                    let id_b = grid.cells[neighbor_cell as usize][k] as usize;
-                    if !pegs.present[id_b] {
-                        continue;
-                    }
-
-                    apply_peg_force_pair(pegs, &mut force_buffer, id_a, id_b);
-                }
-            }
+        let neighbors = strategy.get_neighbors(i, pegs);
+        for &neighbor_id in neighbors.iter() {
+            // if neighbor_id < i {
+            //     continue;
+            // }
+            apply_peg_force_pair(pegs, &mut force_buffer, i, neighbor_id);
         }
     }
 
@@ -260,4 +178,10 @@ pub fn update_peg_physics(pegs: &mut Pegs, delta_time: Fixed) {
             pegs.positions[i].y,
         );
     }
+}
+
+pub fn update_peg_physics(pegs: &mut Pegs, delta_time: Fixed) {
+    let mut grid_strategy = GridNeighborStrategy::new();
+    grid_strategy.populate_grid(pegs);
+    update_peg_physics_with_strategy(pegs, delta_time, &grid_strategy);
 }
