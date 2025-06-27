@@ -1,2 +1,4 @@
 #[derive(Debug)]
-pub enum Error {}
+pub enum Error {
+    BenchmarkError,
+}

@@ -1,9 +1,11 @@
+use crate::bench;
 use crate::error::Error;
 use crate::scenes::Scene;
 use crate::types::Fixed;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
+use agb::timer::Timer;
 use ball::Ball;
 use peg::Pegs;
 
@@ -126,6 +128,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
+    let mut timers = gba.timers.timers();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
     let mut pegs = Pegs::new();
@@ -136,13 +139,24 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     loop {
         input.update();
 
+        bench::reset(&mut timers);
+        bench::set_before(&timers)?;
         physics::update_peg_physics(&mut pegs, num!(DELTA_TIME));
+        bench::set_after(&timers)?;
+        bench::log("PEG")?;
 
         state = match state {
             State::Aiming => {
                 update_aiming(&mut input, &mut game_state, &mut ball)?
             }
-            State::Falling => update_falling(&mut ball, &mut pegs)?,
+            State::Falling => {
+                bench::reset(&mut timers);
+                bench::set_before(&timers)?;
+                let state = update_falling(&mut ball, &mut pegs)?;
+                bench::set_after(&timers)?;
+                bench::log("BALL")?;
+                state
+            }
             State::Counting => update_counting(&mut ball, &mut pegs)?,
         };
 

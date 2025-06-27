@@ -3,7 +3,9 @@ use crate::scenes::game::{ball, peg};
 use crate::scenes::game::{ball::Ball, peg::Pegs};
 use crate::types::{Coordinate, Fixed, Force};
 use agb::fixnum::{num, vec2};
-use grid::{GridNeighborStrategy, NeighborStrategy, SpatialGrid};
+use grid::{
+    GridNeighborStrategy, NaiveNeighborStrategy, NeighborStrategy, SpatialGrid,
+};
 
 mod grid;
 
@@ -149,9 +151,9 @@ pub fn update_peg_physics_with_strategy(
 
         let neighbors = strategy.get_neighbors(i, pegs);
         for &neighbor_id in neighbors.iter() {
-            // if neighbor_id < i {
-            //     continue;
-            // }
+            if neighbor_id <= i {
+                continue;
+            }
             apply_peg_force_pair(pegs, &mut force_buffer, i, neighbor_id);
         }
     }
@@ -181,7 +183,8 @@ pub fn update_peg_physics_with_strategy(
 }
 
 pub fn update_peg_physics(pegs: &mut Pegs, delta_time: Fixed) {
-    let mut grid_strategy = GridNeighborStrategy::new();
-    grid_strategy.populate_grid(pegs);
-    update_peg_physics_with_strategy(pegs, delta_time, &grid_strategy);
+    // let mut strategy = NaiveNeighborStrategy::new();
+    let mut strategy = GridNeighborStrategy::new();
+    strategy.populate_grid(pegs);
+    update_peg_physics_with_strategy(pegs, delta_time, &strategy);
 }

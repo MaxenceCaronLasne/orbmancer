@@ -6,6 +6,7 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
+mod bench;
 mod error;
 mod scenes;
 mod types;
@@ -30,7 +31,9 @@ fn main_test(mut _gba: agb::Gba) -> ! {
 #[agb::entry]
 fn entry(gba: agb::Gba) -> ! {
     match main(gba) {
-        Ok(()) => {}
+        Ok(()) => {
+            agb::println!("Quitting...");
+        }
         Err(err) => {
             agb::eprintln!("Main loop exited with error: {:?}", err);
         }
@@ -56,12 +59,13 @@ mod tests {
 
     #[test_case]
     fn test_physics_sparse_pegs(gba: &mut Gba) {
-        use crate::test_scenes::{run_test_scene, PhysicsTest};
-        
+        use crate::test_scenes::{PhysicsTest, run_test_scene};
+
         agb::println!("Running physics test: sparse pegs");
         agb::println!("Controls: L/R/SELECT = switch test, START = finish");
-        
-        match run_test_scene::<PhysicsTest>(gba, 3600) {  // 60 seconds max
+
+        match run_test_scene::<PhysicsTest>(gba, 3600) {
+            // 60 seconds max
             Ok(result) => agb::println!("Test result: {:?}", result),
             Err(e) => agb::println!("Test error: {:?}", e),
         }
@@ -70,9 +74,14 @@ mod tests {
     #[test_case]
     fn test_physics_all_scenarios(gba: &mut Gba) {
         agb::println!("Running comprehensive physics test");
-        agb::println!("Controls: L=sparse pegs, R=dense cluster, SELECT=wall bounce, START=finish");
-        
-        match crate::test_scenes::run_test_scene::<crate::test_scenes::PhysicsTest>(gba, 3600) {
+        agb::println!(
+            "Controls: L=sparse pegs, R=dense cluster, SELECT=wall bounce, START=finish"
+        );
+
+        match crate::test_scenes::run_test_scene::<
+            crate::test_scenes::PhysicsTest,
+        >(gba, 3600)
+        {
             Ok(result) => agb::println!("Test result: {:?}", result),
             Err(e) => agb::println!("Test error: {:?}", e),
         }
