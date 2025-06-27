@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-const LOG_FREQUENCY: u16 = 100;
+const LOG_FREQUENCY: u16 = 1;
 
 static mut BENCHMARK: Benchmark = Benchmark {
     before: None,
@@ -62,7 +62,7 @@ fn get_result() -> Result<u32, Error> {
                     ((before_long as u32) << 16) + (before_short as u32);
                 let after: u32 =
                     ((after_long as u32) << 16) + (after_short as u32);
-                Ok(after - before)
+                Ok(after.wrapping_sub(before))
             }
             _ => Err(Error::BenchmarkError),
         }

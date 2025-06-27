@@ -16,6 +16,7 @@ include_aseprite!(
 pub struct Pegs {
     pub positions: [Coordinate; MAX_PEGS],
     pub force_radii: [Fixed; MAX_PEGS],
+    pub force_radii_squared: [Fixed; MAX_PEGS],
     pub sprites: [Object; MAX_PEGS],
     pub touched: [bool; MAX_PEGS],
     pub present: [bool; MAX_PEGS],
@@ -27,6 +28,7 @@ impl Pegs {
         Self {
             positions: [vec2(num!(0.0), num!(0.0)); MAX_PEGS],
             force_radii: [num!(0.0); MAX_PEGS],
+            force_radii_squared: [num!(0.0); MAX_PEGS],
             sprites: core::array::from_fn(|_| {
                 Object::new(sprites::PEG.sprite(0))
             }),
@@ -44,6 +46,7 @@ impl Pegs {
         if self.count < MAX_PEGS {
             self.positions[self.count] = position;
             self.force_radii[self.count] = force_radius;
+            self.force_radii_squared[self.count] = force_radius * force_radius;
             self.sprites[self.count] = Object::new(sprites::PEG.sprite(0));
             self.touched[self.count] = false;
             self.present[self.count] = true;

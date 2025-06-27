@@ -1,75 +1,90 @@
 use crate::error::Error;
-use crate::scenes::game::{ball::Ball, peg::Peg, physics};
+use crate::scenes::game::{ball::Ball, peg::Pegs, physics};
 use crate::test_scenes::{TestResult, TestScene};
 use crate::types::Fixed;
 use agb::display::GraphicsFrame;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
-use alloc::alloc::Global;
 use alloc::vec;
-use alloc::vec::Vec;
 
-/// Configuration for physics test scenario
 pub struct PhysicsTestConfig {
-    pub ball_position: (Fixed, Fixed),
-    pub ball_velocity: (Fixed, Fixed),
-    pub peg_positions: Vec<(Fixed, Fixed)>,
     pub max_simulation_time: Fixed,
     pub description: &'static str,
 }
 
 impl PhysicsTestConfig {
     /// Simple test: ball falls through sparse pegs
-    pub fn sparse_pegs() -> Self {
-        Self {
-            ball_position: (num!(81), num!(10)),
-            ball_velocity: (num!(0), num!(0)),
-            peg_positions: vec![
-                (num!(40), num!(60)),
-                (num!(120), num!(80)),
-                (num!(80), num!(100)),
-                (num!(60), num!(120)),
-                (num!(100), num!(140)),
-            ],
+    pub fn sparse_pegs() -> (Self, Ball, Pegs) {
+        let config = Self {
             max_simulation_time: num!(5), // 5 seconds at 60fps = 300 frames
             description: "Ball falling through sparse pegs",
-        }
+        };
+
+        let ball = Ball::new(vec2(num!(61), num!(10)));
+
+        let mut pegs = Pegs::new();
+        // Add a few sparse pegs for the ball to interact with
+        let _ = pegs.add_peg(vec2(num!(60), num!(40)), num!(15.0));
+        let _ = pegs.add_peg(vec2(num!(100), num!(70)), num!(12.0));
+        let _ = pegs.add_peg(vec2(num!(40), num!(100)), num!(18.0));
+        let _ = pegs.add_peg(vec2(num!(120), num!(120)), num!(10.0));
+
+        (config, ball, pegs)
     }
 
     /// Dense peg cluster test
-    pub fn dense_cluster() -> Self {
-        let mut pegs = Vec::new();
-        // Create a dense cluster of pegs
-        for x in (40..120).step_by(15) {
-            for y in (60..120).step_by(15) {
-                pegs.push((Fixed::new(x), Fixed::new(y)));
+    pub fn dense_cluster() -> (Self, Ball, Pegs) {
+        let config = Self {
+            max_simulation_time: num!(8),
+            description: "Ball bouncing through dense peg cluster",
+        };
+
+        let mut pegs = Pegs::new();
+        // Create a dense cluster of pegs in the middle area
+        for x in (50..130).step_by(20) {
+            for y in (50..140).step_by(18) {
+                let force_radius = if (x + y) % 40 == 0 {
+                    num!(20.0)
+                } else {
+                    num!(12.0)
+                };
+                let _ = pegs
+                    .add_peg(vec2(Fixed::new(x), Fixed::new(y)), force_radius);
             }
         }
 
-        Self {
-            ball_position: (num!(80), num!(10)),
-            ball_velocity: (num!(10), num!(0)), // Small horizontal velocity
-            peg_positions: pegs,
-            max_simulation_time: num!(5),
-            description: "Ball bouncing through dense peg cluster",
-        }
+        let mut ball = Ball::new(vec2(num!(30), num!(10)));
+        ball.velocity = vec2(num!(15), num!(5)); // Diagonal entry into cluster
+
+        (config, ball, pegs)
     }
 
     /// Wall collision test
-    pub fn wall_bounce() -> Self {
-        Self {
-            ball_position: (num!(10), num!(10)),
-            ball_velocity: (num!(-20), num!(0)), // Fast leftward velocity
-            peg_positions: vec![(num!(80), num!(60)), (num!(80), num!(100))],
-            max_simulation_time: num!(3),
+    pub fn wall_bounce() -> (Self, Ball, Pegs) {
+        let config = Self {
+            max_simulation_time: num!(6),
             description: "Ball bouncing off walls and pegs",
-        }
+        };
+
+        let mut pegs = Pegs::new();
+        // Create a strategic peg arrangement for interesting wall bounces
+        let _ = pegs.add_peg(vec2(num!(30), num!(50)), num!(15.0));
+        let _ = pegs.add_peg(vec2(num!(130), num!(60)), num!(15.0));
+        let _ = pegs.add_peg(vec2(num!(80), num!(90)), num!(18.0));
+        let _ = pegs.add_peg(vec2(num!(50), num!(120)), num!(12.0));
+        let _ = pegs.add_peg(vec2(num!(110), num!(120)), num!(12.0));
+
+        let mut ball = Ball::new(vec2(num!(80), num!(5)));
+        ball.velocity = vec2(num!(25), num!(10)); // Fast angled entry
+
+        (config, ball, pegs)
     }
 }
 
 pub struct PhysicsTest {
     ball: Ball,
-    pegs: Vec<Peg>,
+    pegs: Pegs,
+    physics: physics::PhysicsState<physics::Grid>,
     config: PhysicsTestConfig,
     simulation_time: Fixed,
     frame_count: u32,
@@ -77,7 +92,8 @@ pub struct PhysicsTest {
 
 impl TestScene for PhysicsTest {
     fn new() -> Self {
-        Self::with_config(PhysicsTestConfig::sparse_pegs())
+        let (config, ball, pegs) = PhysicsTestConfig::sparse_pegs();
+        Self::with_config(config, ball, pegs)
     }
 
     fn update(
@@ -86,15 +102,18 @@ impl TestScene for PhysicsTest {
     ) -> Result<TestResult, Error> {
         // Allow switching test scenarios with buttons
         if input.is_just_pressed(Button::L) {
-            *self = Self::with_config(PhysicsTestConfig::sparse_pegs());
+            let (config, ball, pegs) = PhysicsTestConfig::sparse_pegs();
+            *self = Self::with_config(config, ball, pegs);
             return Ok(TestResult::Running);
         }
         if input.is_just_pressed(Button::R) {
-            *self = Self::with_config(PhysicsTestConfig::dense_cluster());
+            let (config, ball, pegs) = PhysicsTestConfig::dense_cluster();
+            *self = Self::with_config(config, ball, pegs);
             return Ok(TestResult::Running);
         }
         if input.is_just_pressed(Button::SELECT) {
-            *self = Self::with_config(PhysicsTestConfig::wall_bounce());
+            let (config, ball, pegs) = PhysicsTestConfig::wall_bounce();
+            *self = Self::with_config(config, ball, pegs);
             return Ok(TestResult::Running);
         }
 
@@ -107,7 +126,12 @@ impl TestScene for PhysicsTest {
 
         // Run physics simulation
         let delta_time = num!(1) / num!(60); // 60 FPS
-        physics::move_and_collide(&mut self.ball, &mut self.pegs, delta_time);
+        physics::update_ball_physics(
+            &mut self.ball,
+            &mut self.pegs,
+            delta_time,
+            &self.physics,
+        );
 
         self.simulation_time += delta_time;
         self.frame_count += 1;
@@ -134,8 +158,10 @@ impl TestScene for PhysicsTest {
         self.ball.show(frame);
 
         // Render pegs
-        for peg in self.pegs.iter_mut() {
-            peg.show(frame);
+        for i in 0..self.pegs.count {
+            if self.pegs.present[i] {
+                self.pegs.show(i, frame);
+            }
         }
     }
 
@@ -145,21 +171,17 @@ impl TestScene for PhysicsTest {
 }
 
 impl PhysicsTest {
-    pub fn with_config(config: PhysicsTestConfig) -> Self {
-        // Create ball at configured position
-        let mut ball =
-            Ball::new(vec2(config.ball_position.0, config.ball_position.1));
-        ball.velocity = vec2(config.ball_velocity.0, config.ball_velocity.1);
-
-        // Create pegs at configured positions
-        let mut pegs = Vec::<Peg>::new_in(Global);
-        for (x, y) in &config.peg_positions {
-            pegs.push(Peg::new(vec2(*x, *y), num!(25.0))); // Use default force radius for tests
-        }
+    pub fn with_config(
+        config: PhysicsTestConfig,
+        ball: Ball,
+        pegs: Pegs,
+    ) -> Self {
+        let physics = physics::new(&pegs);
 
         Self {
             ball,
             pegs,
+            physics,
             config,
             simulation_time: num!(0),
             frame_count: 0,
@@ -170,8 +192,7 @@ impl PhysicsTest {
         (
             self.frame_count,
             self.simulation_time,
-            self.pegs.iter().filter(|p| p.is_touched()).count(),
+            self.pegs.count - self.pegs.touched.iter().filter(|&&t| t).count(),
         )
     }
 }
-
