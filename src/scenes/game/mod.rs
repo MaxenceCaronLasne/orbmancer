@@ -90,9 +90,15 @@ fn update_aiming(
 fn update_falling<T: NeighborStrategy>(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics: &PhysicsState<T>,
+    physics: &mut PhysicsState<T>,
 ) -> Result<State, Error> {
-    physics::update_ball_physics(ball, pegs, num!(DELTA_TIME), physics);
+    physics::update_ball_physics_with_buffer(
+        ball,
+        pegs,
+        num!(DELTA_TIME),
+        physics,
+        None,
+    );
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
@@ -105,10 +111,16 @@ fn update_falling<T: NeighborStrategy>(
 fn update_falling_with_benchmark<T: NeighborStrategy>(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics: &PhysicsState<T>,
+    physics: &mut PhysicsState<T>,
     timers: &agb::timer::Timers,
 ) -> Result<State, Error> {
-    physics::update_ball_physics_with_timers(ball, pegs, num!(DELTA_TIME), physics, Some(timers));
+    physics::update_ball_physics_with_buffer(
+        ball,
+        pegs,
+        num!(DELTA_TIME),
+        physics,
+        Some(timers),
+    );
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
@@ -121,7 +133,7 @@ fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
     for i in 0..pegs.count {
         if pegs.is_touched(i) {
-            pegs.present[i] = false;
+            pegs.set_present(i, false);
         }
     }
     Ok(State::Aiming)
@@ -146,7 +158,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
     spawn_pegs(&mut pegs, &mut rng);
 
-    let physics = physics::new(&pegs);
+    let mut physics = physics::new(&pegs);
 
     loop {
         input.update();
@@ -166,10 +178,15 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                 {
                     bench::reset(&mut timers);
                     bench::set_before(&timers)?;
-                    let state = update_falling_with_benchmark(&mut ball, &mut pegs, &physics, &timers)?;
+                    let state = update_falling_with_benchmark(
+                        &mut ball,
+                        &mut pegs,
+                        &mut physics,
+                        &timers,
+                    )?;
                     bench::set_after(&timers)?;
                     bench::log("TOTAL_PHYSICS")?;
-                    
+
                     // Log detailed breakdown every 60 frames (1 second at 60fps)
                     static mut FRAME_COUNTER: u32 = 0;
                     unsafe {
@@ -178,12 +195,12 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                             bench::log_physics_breakdown();
                         }
                     }
-                    
+
                     state
                 }
                 #[cfg(not(feature = "benchmark"))]
                 {
-                    update_falling(&mut ball, &mut pegs, &physics)?
+                    update_falling(&mut ball, &mut pegs, &mut physics)?
                 }
             }
             State::Counting => update_counting(&mut ball, &mut pegs)?,
@@ -191,7 +208,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
         let mut frame = gfx.frame();
         for i in 0..pegs.count {
-            if pegs.present[i] {
+            if pegs.is_present(i) {
                 pegs.show(i, &mut frame);
             }
         }

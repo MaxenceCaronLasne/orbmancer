@@ -1,62 +1,24 @@
-//! Spatial grid optimization for efficient neighbor finding
-//!
-//! This module implements a spatial hash grid that dramatically improves
-//! performance for collision detection and force calculations by reducing
-//! the search space from O(n) to O(k) where k is the number of nearby objects.
-//!
-//! # Algorithm
-//!
-//! 1. **Grid Mapping**: World coordinates are mapped to grid cells using bit shifting
-//! 2. **Cell Storage**: Each cell contains a list of peg IDs in that location  
-//! 3. **Neighbor Query**: For any coordinate, check the 9 surrounding cells (3x3 grid)
-//! 4. **Efficient Updates**: Grid can be updated incrementally as pegs move
-//!
-//! # Performance
-//!
-//! - **Grid cell size**: 2³ = 8 units (optimized for typical peg spacing)
-//! - **Memory usage**: O(n) where n = number of pegs
-//! - **Query time**: O(k) where k = pegs in nearby cells (~9 cells typically)
-//! - **Update time**: O(n) to rebuild entire grid
-//!
-//! # Example
-//!
-//! ```rust
-//! use crate::scenes::game::physics::grid::{Grid, NeighborStrategy};
-//! 
-//! let grid = Grid::new(&pegs);
-//! 
-//! // Find all pegs near a ball's position
-//! for peg_id in grid.get_neighbors(ball.position) {
-//!     // Only check collision with nearby pegs
-//!     check_collision(ball, peg_id);
-//! }
-//! ```
-
 use crate::scenes::game::peg::Pegs;
 use crate::types::Coordinate;
-use crate::error::Error;
+use crate::{error::Error, scenes::game::peg::PegIndex};
 use agb::fixnum::Vector2D;
 use agb::hash_map::HashMap;
 use alloc::{vec, vec::Vec};
 use core::num::TryFromIntError;
 
-/// Grid cell size as a power of 2 for efficient bit-shift operations
-/// 
-/// SHIFT_VALUE = 3 means cell size = 2³ = 8 units
-/// This size is optimized for typical peg spacing and interaction ranges.
 const SHIFT_VALUE: u32 = 3;
 
 pub trait NeighborStrategy {
     fn get_neighbors(
         &self,
         coordinate: Coordinate,
-    ) -> impl Iterator<Item = usize>;
+    ) -> impl Iterator<Item = PegIndex>;
 }
 
 type GridCoordinate = Vector2D<u8>;
 
 pub struct Grid {
-    hash_map: HashMap<GridCoordinate, Vec<usize>>,
+    hash_map: HashMap<GridCoordinate, Vec<PegIndex>>,
 }
 
 impl Grid {
@@ -66,8 +28,8 @@ impl Grid {
         };
 
         for i in 0..pegs.count {
-            if pegs.present[i] {
-                let _ = res.push(i, pegs.positions[i]);
+            if pegs.is_present(i) {
+                let _ = res.push(i, pegs.position(i));
             }
         }
 
@@ -76,10 +38,10 @@ impl Grid {
 
     pub fn update(&mut self, pegs: &Pegs) {
         self.hash_map.clear();
-        
+
         for i in 0..pegs.count {
-            if pegs.present[i] {
-                let _ = self.push(i, pegs.positions[i]);
+            if pegs.is_present(i) {
+                let _ = self.push(i, pegs.position(i));
             }
         }
     }
@@ -100,7 +62,7 @@ impl Grid {
 
     fn push(
         self: &mut Grid,
-        index: usize,
+        index: PegIndex,
         coordinate: Coordinate,
     ) -> Result<(), Error> {
         let grid_coords = match Grid::coord_to_grid(coordinate) {
@@ -122,28 +84,113 @@ impl NeighborStrategy for Grid {
     fn get_neighbors(
         &self,
         coordinate: Coordinate,
-    ) -> impl Iterator<Item = usize> {
+    ) -> impl Iterator<Item = PegIndex> {
         let gc = match Self::coord_to_grid(coordinate) {
             Ok(coords) => coords,
-            Err(_) => return Vec::new().into_iter(),
+            Err(_) => return GridNeighborIterator::empty(),
         };
 
-        [
-            (gc.x.checked_sub(1), gc.y.checked_sub(1)),
-            (gc.x.checked_sub(1), Some(gc.y)),
-            (gc.x.checked_sub(1), gc.y.checked_add(1)),
-            (Some(gc.x), gc.y.checked_sub(1)),
-            (Some(gc.x), Some(gc.y)),
-            (Some(gc.x), gc.y.checked_add(1)),
-            (gc.x.checked_add(1), gc.y.checked_sub(1)),
-            (gc.x.checked_add(1), Some(gc.y)),
-            (gc.x.checked_add(1), gc.y.checked_add(1)),
-        ]
-        .into_iter()
-        .filter_map(|(x, y)| x.zip(y).map(|(x, y)| Vector2D::new(x, y)))
-        .filter_map(|coord| self.hash_map.get(&coord))
-        .flat_map(|pegs_in_cell| pegs_in_cell.iter().copied())
-        .collect::<Vec<_>>()
-        .into_iter()
+        GridNeighborIterator::new(self, gc)
+    }
+}
+
+pub struct GridNeighborIterator<'a> {
+    grid: &'a Grid,
+    center: GridCoordinate,
+    offset_x: i8,
+    offset_y: i8,
+    current_cell_iter: Option<core::slice::Iter<'a, PegIndex>>,
+}
+
+impl<'a> GridNeighborIterator<'a> {
+    #[inline]
+    fn new(grid: &'a Grid, center: GridCoordinate) -> Self {
+        Self {
+            grid,
+            center,
+            offset_x: -1,
+            offset_y: -1,
+            current_cell_iter: None,
+        }
+    }
+
+    #[inline]
+    fn empty() -> Self {
+        // Create an empty grid for the empty iterator
+        static EMPTY_GRID: Grid = Grid {
+            hash_map: HashMap::new(),
+        };
+
+        Self {
+            grid: &EMPTY_GRID,
+            center: Vector2D::new(0, 0),
+            offset_x: 2, // Start beyond valid range to return None immediately
+            offset_y: 2,
+            current_cell_iter: None,
+        }
+    }
+
+    #[inline]
+    fn advance_to_next_cell(&mut self) -> bool {
+        // Move to next cell offset
+        self.offset_x += 1;
+        if self.offset_x > 1 {
+            self.offset_x = -1;
+            self.offset_y += 1;
+            if self.offset_y > 1 {
+                return false; // No more cells
+            }
+        }
+
+        // Calculate actual grid coordinate
+        let target_x = if self.offset_x < 0 {
+            self.center.x.checked_sub(1)
+        } else if self.offset_x == 0 {
+            Some(self.center.x)
+        } else {
+            self.center.x.checked_add(1)
+        };
+
+        let target_y = if self.offset_y < 0 {
+            self.center.y.checked_sub(1)
+        } else if self.offset_y == 0 {
+            Some(self.center.y)
+        } else {
+            self.center.y.checked_add(1)
+        };
+
+        // Direct HashMap lookup - skip empty cells immediately
+        if let (Some(x), Some(y)) = (target_x, target_y) {
+            let coord = Vector2D::new(x, y);
+            if let Some(pegs_in_cell) = self.grid.hash_map.get(&coord) {
+                self.current_cell_iter = Some(pegs_in_cell.iter());
+                return true;
+            }
+        }
+
+        // Cell is empty or out of bounds, continue to next
+        self.advance_to_next_cell()
+    }
+}
+
+impl<'a> Iterator for GridNeighborIterator<'a> {
+    type Item = PegIndex;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            // Try to get next item from current cell
+            if let Some(ref mut iter) = self.current_cell_iter {
+                if let Some(&peg_id) = iter.next() {
+                    return Some(peg_id);
+                }
+            }
+
+            // Current cell exhausted, move to next cell
+            self.current_cell_iter = None;
+            if !self.advance_to_next_cell() {
+                return None;
+            }
+        }
     }
 }

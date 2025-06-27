@@ -49,11 +49,23 @@ impl PhysicsStats {
 
     fn add_measurement(&mut self, operation: PhysicsOperation, time: u32) {
         match operation {
-            PhysicsOperation::TotalFrame => self.total_frame_time = self.total_frame_time.saturating_add(time),
-            PhysicsOperation::GridQuery => self.grid_query_time = self.grid_query_time.saturating_add(time),
-            PhysicsOperation::Collision => self.collision_time = self.collision_time.saturating_add(time),
-            PhysicsOperation::ForceCalculation => self.force_calculation_time = self.force_calculation_time.saturating_add(time),
-            PhysicsOperation::PegUpdate => self.peg_update_time = self.peg_update_time.saturating_add(time),
+            PhysicsOperation::TotalFrame => {
+                self.total_frame_time =
+                    self.total_frame_time.saturating_add(time)
+            }
+            PhysicsOperation::GridQuery => {
+                self.grid_query_time = self.grid_query_time.saturating_add(time)
+            }
+            PhysicsOperation::Collision => {
+                self.collision_time = self.collision_time.saturating_add(time)
+            }
+            PhysicsOperation::ForceCalculation => {
+                self.force_calculation_time =
+                    self.force_calculation_time.saturating_add(time)
+            }
+            PhysicsOperation::PegUpdate => {
+                self.peg_update_time = self.peg_update_time.saturating_add(time)
+            }
         }
         self.frame_count = self.frame_count.saturating_add(1);
     }
@@ -128,7 +140,32 @@ pub fn log(tag: &str) -> Result<(), Error> {
 
     unsafe {
         if BENCHMARK.log_counter == 0 || BENCHMARK.log_counter == 1 {
-            agb::println!("[BENCH][{}] {}", tag, result)
+            if tag == "TOTAL_PHYSICS" {
+                let benchmark = &raw const BENCHMARK;
+                let stats = &(*benchmark).stats;
+                if stats.frame_count > 0 {
+                    let avg_grid = stats.grid_query_time / stats.frame_count;
+                    let avg_collision =
+                        stats.collision_time / stats.frame_count;
+                    let avg_force =
+                        stats.force_calculation_time / stats.frame_count;
+                    let avg_peg = stats.peg_update_time / stats.frame_count;
+
+                    agb::println!(
+                        "[BENCH][{}] {} [Grid:{} Collision:{} Force:{} Peg:{}]",
+                        tag,
+                        result,
+                        avg_grid,
+                        avg_collision,
+                        avg_force,
+                        avg_peg
+                    );
+                } else {
+                    agb::println!("[BENCH][{}] {}", tag, result);
+                }
+            } else {
+                agb::println!("[BENCH][{}] {}", tag, result);
+            }
         }
         BENCHMARK.log_counter = (BENCHMARK.log_counter + 1) % LOG_FREQUENCY;
     };
@@ -142,8 +179,8 @@ pub fn start_nested_timer(timers: &agb::timer::Timers) -> Result<(), Error> {
         if BENCHMARK.current_timer_depth >= MAX_NESTED_TIMERS {
             return Err(Error::BenchmarkError);
         }
-        
-        BENCHMARK.nested_timers[BENCHMARK.current_timer_depth] = 
+
+        BENCHMARK.nested_timers[BENCHMARK.current_timer_depth] =
             Some((timers.timer3.value(), timers.timer2.value()));
         BENCHMARK.current_timer_depth += 1;
         Ok(())
@@ -156,14 +193,15 @@ pub fn end_nested_timer(timers: &agb::timer::Timers) -> Result<u32, Error> {
         if BENCHMARK.current_timer_depth == 0 {
             return Err(Error::BenchmarkError);
         }
-        
+
         BENCHMARK.current_timer_depth -= 1;
         let start_time = BENCHMARK.nested_timers[BENCHMARK.current_timer_depth]
             .ok_or(Error::BenchmarkError)?;
-        
+
         let before: u32 = ((start_time.0 as u32) << 16) + (start_time.1 as u32);
-        let after: u32 = ((timers.timer3.value() as u32) << 16) + (timers.timer2.value() as u32);
-        
+        let after: u32 = ((timers.timer3.value() as u32) << 16)
+            + (timers.timer2.value() as u32);
+
         Ok(after.wrapping_sub(before))
     }
 }
@@ -178,9 +216,7 @@ pub fn record_physics_measurement(operation: PhysicsOperation, time: u32) {
 
 /// Get current physics statistics
 pub fn get_physics_stats() -> PhysicsStats {
-    unsafe {
-        BENCHMARK.stats
-    }
+    unsafe { BENCHMARK.stats }
 }
 
 /// Reset physics statistics
@@ -202,9 +238,15 @@ pub fn log_physics_breakdown() {
             let avg_collision = stats.collision_time / stats.frame_count;
             let avg_force = stats.force_calculation_time / stats.frame_count;
             let avg_peg = stats.peg_update_time / stats.frame_count;
-            
-            agb::println!("[PHYSICS] Total:{} Grid:{} Collision:{} Force:{} Peg:{}", 
-                         avg_total, avg_grid, avg_collision, avg_force, avg_peg);
+
+            agb::println!(
+                "[PHYSICS] Total:{} Grid:{} Collision:{} Force:{} Peg:{}",
+                avg_total,
+                avg_grid,
+                avg_collision,
+                avg_force,
+                avg_peg
+            );
         }
     }
 }
@@ -219,12 +261,12 @@ pub mod bench_macros {
     macro_rules! bench_start {
         ($timers:expr) => {};
     }
-    
+
     #[macro_export]
     macro_rules! bench_end {
         ($timers:expr, $operation:expr) => {};
     }
-    
+
     #[macro_export]
     macro_rules! bench_scope {
         ($timers:expr, $operation:expr, $code:block) => {
@@ -241,7 +283,7 @@ pub mod bench_macros {
             crate::bench::start_nested_timer($timers).ok();
         };
     }
-    
+
     #[macro_export]
     macro_rules! bench_end {
         ($timers:expr, $operation:expr) => {
@@ -250,7 +292,7 @@ pub mod bench_macros {
             }
         };
     }
-    
+
     #[macro_export]
     macro_rules! bench_scope {
         ($timers:expr, $operation:expr, $code:block) => {{

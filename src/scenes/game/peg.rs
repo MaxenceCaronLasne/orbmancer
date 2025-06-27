@@ -1,7 +1,7 @@
 use crate::types::{Coordinate, Fixed};
 use agb::display::GraphicsFrame;
 use agb::display::object::Object;
-use agb::fixnum::{num, vec2};
+use agb::fixnum::{Vector2D, num, vec2};
 use agb::include_aseprite;
 
 pub const RADIUS: f32 = 3.0;
@@ -13,27 +13,27 @@ include_aseprite!(
     "assets/peg.aseprite"
 );
 
+pub type PegIndex = u8;
+
 pub struct Pegs {
-    pub positions: [Coordinate; MAX_PEGS],
-    pub force_radii: [Fixed; MAX_PEGS],
-    pub force_radii_squared: [Fixed; MAX_PEGS],
-    pub sprites: [Object; MAX_PEGS],
-    pub touched: [bool; MAX_PEGS],
-    pub present: [bool; MAX_PEGS],
-    pub count: usize,
+    position: [Coordinate; MAX_PEGS as usize],
+    force_radius_squared: [Fixed; MAX_PEGS as usize],
+    sprite: [Object; MAX_PEGS as usize],
+    touched: [bool; MAX_PEGS as usize],
+    present: [bool; MAX_PEGS as usize],
+    pub count: u8,
 }
 
 impl Pegs {
     pub fn new() -> Self {
         Self {
-            positions: [vec2(num!(0.0), num!(0.0)); MAX_PEGS],
-            force_radii: [num!(0.0); MAX_PEGS],
-            force_radii_squared: [num!(0.0); MAX_PEGS],
-            sprites: core::array::from_fn(|_| {
+            position: [vec2(num!(0.0), num!(0.0)); MAX_PEGS as usize],
+            force_radius_squared: [num!(0.0); MAX_PEGS as usize],
+            sprite: core::array::from_fn(|_| {
                 Object::new(sprites::PEG.sprite(0))
             }),
-            touched: [false; MAX_PEGS],
-            present: [false; MAX_PEGS],
+            touched: [false; MAX_PEGS as usize],
+            present: [false; MAX_PEGS as usize],
             count: 0,
         }
     }
@@ -42,14 +42,15 @@ impl Pegs {
         &mut self,
         position: Coordinate,
         force_radius: Fixed,
-    ) -> Option<usize> {
-        if self.count < MAX_PEGS {
-            self.positions[self.count] = position;
-            self.force_radii[self.count] = force_radius;
-            self.force_radii_squared[self.count] = force_radius * force_radius;
-            self.sprites[self.count] = Object::new(sprites::PEG.sprite(0));
-            self.touched[self.count] = false;
-            self.present[self.count] = true;
+    ) -> Option<PegIndex> {
+        if (self.count as usize) < MAX_PEGS {
+            self.position[self.count as usize] = position;
+            self.force_radius_squared[self.count as usize] =
+                force_radius * force_radius;
+            self.sprite[self.count as usize] =
+                Object::new(sprites::PEG.sprite(0));
+            self.touched[self.count as usize] = false;
+            self.present[self.count as usize] = true;
             self.count += 1;
             Some(self.count - 1)
         } else {
@@ -57,22 +58,43 @@ impl Pegs {
         }
     }
 
-    pub fn touch(&mut self, index: usize) {
+    pub fn position(&self, index: PegIndex) -> Coordinate {
+        self.position[index as usize]
+    }
+
+    pub fn set_position(&mut self, index: PegIndex, new_value: Coordinate) {
+        self.position[index as usize] = new_value;
+    }
+
+    pub fn force_radius_squared(&self, index: PegIndex) -> Fixed {
+        self.force_radius_squared[index as usize]
+    }
+
+    pub fn touch(&mut self, index: PegIndex) {
         if index < self.count {
-            self.touched[index] = true;
+            self.touched[index as usize] = true;
         }
     }
 
-    pub fn is_touched(&self, index: usize) -> bool {
-        index < self.count && self.touched[index]
+    pub fn is_touched(&self, index: PegIndex) -> bool {
+        index < self.count && self.touched[index as usize]
     }
 
-    pub fn show(&mut self, index: usize, frame: &mut GraphicsFrame) {
+    pub fn show(&mut self, index: PegIndex, frame: &mut GraphicsFrame) {
         if index < self.count {
-            self.sprites[index].set_pos(self.positions[index].round());
-            if !self.touched[index] {
-                self.sprites[index].show(frame);
+            self.sprite[index as usize]
+                .set_pos(self.position[index as usize].round());
+            if !self.touched[index as usize] {
+                self.sprite[index as usize].show(frame);
             }
         }
+    }
+
+    pub fn is_present(&self, index: PegIndex) -> bool {
+        self.present[index as usize]
+    }
+
+    pub fn set_present(&mut self, index: PegIndex, is_set: bool) {
+        self.present[index as usize] = is_set
     }
 }
