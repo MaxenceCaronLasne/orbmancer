@@ -32,7 +32,7 @@ struct GameState {
 }
 
 fn spawn_pegs(pegs: &mut Pegs, rng: &mut RandomNumberGenerator) {
-    let peg_count = 20;
+    let peg_count = 50;
     let screen_width = 140;
     let screen_height = 120;
     let min_x = 20;
@@ -131,6 +131,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     crate::bench::init(&mut timers);
 
     loop {
+        crate::bench::start("LOOP");
         input.update();
 
         crate::bench::start("UPDATE_PEGS_TOP");
@@ -158,5 +159,6 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         }
         ball.show(&mut frame);
         frame.commit();
+        crate::bench::stop("LOOP");
     }
 }

@@ -53,5 +53,6 @@ pub fn update_pegs(
         }
     }
 
+    state.update_grid_selective(pegs);
     handle_peg_peg_collisions(pegs, state);
 }

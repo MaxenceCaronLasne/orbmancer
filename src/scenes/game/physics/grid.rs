@@ -8,7 +8,7 @@ use core::num::TryFromIntError;
 
 const SHIFT_VALUE: u32 = 3;
 
-type GridCoordinate = Vector2D<u8>;
+pub type GridCoordinate = Vector2D<u8>;
 
 pub struct Grid {
     hash_map: HashMap<GridCoordinate, Vec<PegIndex>>,
@@ -29,7 +29,7 @@ impl Grid {
         res
     }
 
-    fn coord_to_grid(
+    pub fn coord_to_grid(
         coordinate: Coordinate,
     ) -> Result<GridCoordinate, TryFromIntError> {
         let rounded = coordinate.round();
@@ -60,6 +60,39 @@ impl Grid {
         }
 
         Ok(())
+    }
+
+    pub fn update(&mut self, pegs: &Pegs) {
+        self.hash_map.clear();
+        for i in 0..pegs.count {
+            if pegs.is_present(i) {
+                let _ = self.push(i, pegs.position(i));
+            }
+        }
+    }
+
+    pub fn remove_peg(&mut self, peg_id: PegIndex, grid_coord: GridCoordinate) {
+        if let Some(pegs_in_cell) = self.hash_map.get_mut(&grid_coord) {
+            pegs_in_cell.retain(|&id| id != peg_id);
+            if pegs_in_cell.is_empty() {
+                self.hash_map.remove(&grid_coord);
+            }
+        }
+    }
+
+    pub fn add_peg(&mut self, peg_id: PegIndex, grid_coord: GridCoordinate) {
+        if let Some(pegs_in_cell) = self.hash_map.get_mut(&grid_coord) {
+            pegs_in_cell.push(peg_id);
+        } else {
+            let _ = self.hash_map.insert(grid_coord, vec![peg_id]);
+        }
+    }
+
+    pub fn move_peg(&mut self, peg_id: PegIndex, old_coord: GridCoordinate, new_coord: GridCoordinate) {
+        if old_coord != new_coord {
+            self.remove_peg(peg_id, old_coord);
+            self.add_peg(peg_id, new_coord);
+        }
     }
 
     pub fn fill_neighbors(

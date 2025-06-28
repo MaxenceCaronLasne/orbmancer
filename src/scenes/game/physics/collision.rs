@@ -4,7 +4,7 @@ use super::constants::{
 use super::state::PhysicsState;
 use crate::scenes::game::peg::PegIndex;
 use crate::scenes::game::{Ball, ball, peg::Pegs};
-use agb::fixnum::{num, vec2};
+use agb::fixnum::num;
 
 const COLLISION_DISTANCE_F32: f32 =
     ball::RADIUS + crate::scenes::game::peg::RADIUS;
@@ -63,6 +63,38 @@ pub fn handle_peg_peg_collisions(
     }
 }
 
+struct CollisionInfo {
+    distance: crate::types::Fixed,
+    normal: crate::types::Coordinate,
+    overlap: crate::types::Fixed,
+}
+
+#[inline]
+fn calculate_collision_info(
+    pos1: crate::types::Coordinate,
+    pos2: crate::types::Coordinate,
+    collision_distance_squared: crate::types::Fixed,
+    collision_distance: crate::types::Fixed,
+) -> Option<CollisionInfo> {
+    let distance_vector = pos1 - pos2;
+    let distance_squared = distance_vector.magnitude_squared();
+    
+    if distance_squared < collision_distance_squared && distance_squared > num!(ZERO) {
+        let distance = distance_squared.sqrt();
+        let inv_distance = num!(1.0) / distance;
+        let normal = distance_vector * inv_distance;
+        let overlap = collision_distance - distance;
+        
+        Some(CollisionInfo {
+            distance,
+            normal,
+            overlap,
+        })
+    } else {
+        None
+    }
+}
+
 #[inline]
 fn check_ball_collisions(
     ball: &mut Ball,
@@ -105,42 +137,22 @@ fn check_peg_collisions(
         if peg_id >= pegs.count || peg_id == index {
             continue;
         }
+        
         let distance_vector = pegs.position(index) - pegs.position(peg_id);
         let distance_squared = distance_vector.magnitude_squared();
-        if distance_squared < collision_distance_squared
-            && distance_squared > num!(ZERO)
-        {
+        
+        if distance_squared > num!(ZERO) && distance_squared < collision_distance_squared {
             let distance = distance_squared.sqrt();
-            let inv_distance = num!(1.0) / distance;
-            let normal = distance_vector * inv_distance;
+            let normal = distance_vector / distance;
+            
+            let force_magnitude = config.peg_repulsion_strength / distance;
+            let repulsion_force = normal * force_magnitude;
             
             let velocity1 = pegs.velocity(index);
             let velocity2 = pegs.velocity(peg_id);
             
-            let velocity_diff = velocity1 - velocity2;
-            let velocity_along_normal = velocity_diff.dot(normal);
-            
-            if velocity_along_normal > num!(0.0) {
-                continue;
-            }
-            
-            let separation_impulse = num!(0.5);
-            let impulse = if velocity_along_normal.abs() < num!(0.01) {
-                normal * separation_impulse
-            } else {
-                normal * (num!(-2.0) * velocity_along_normal / num!(2.0))
-            };
-            
-            let new_velocity1 = (velocity1 + impulse) * config.peg_bounce_damping;
-            let new_velocity2 = (velocity2 - impulse) * config.peg_bounce_damping;
-            
-            pegs.set_velocity(index, new_velocity1);
-            pegs.set_velocity(peg_id, new_velocity2);
-            
-            let overlap = num!(PEG_COLLISION_DISTANCE_F32) - distance;
-            let separation = normal * (overlap * num!(0.5));
-            pegs.set_position(index, pegs.position(index) + separation);
-            pegs.set_position(peg_id, pegs.position(peg_id) - separation);
+            pegs.set_velocity(index, velocity1 + repulsion_force);
+            pegs.set_velocity(peg_id, velocity2 - repulsion_force);
         }
     }
 }
