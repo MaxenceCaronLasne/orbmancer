@@ -1,17 +1,14 @@
 use crate::scenes::game::peg::PegIndex;
-use crate::scenes::game::{Ball, peg::Pegs};
-use crate::types::Fixed;
-use agb::fixnum::{num, vec2};
+use crate::scenes::game::peg::Pegs;
 
-use super::collision::handle_ball_wall_collisions;
-use super::constants::{PhysicsConfig, SCREEN_BOTTOM, ZERO};
+use super::constants::PhysicsConfig;
 use super::grid::Grid;
 
 const MAX_NEIGHBORS: usize = 16;
 
 pub struct PhysicsState {
     grid: Grid,
-    config: PhysicsConfig,
+    pub config: PhysicsConfig,
     neighbor_buffer: [PegIndex; MAX_NEIGHBORS],
 }
 
@@ -43,34 +40,4 @@ impl PhysicsState {
     pub fn neighbors(&self, count: usize) -> &[PegIndex] {
         &self.neighbor_buffer[..count.min(MAX_NEIGHBORS)]
     }
-}
-
-pub fn update_ball(
-    ball: &mut Ball,
-    pegs: &mut Pegs,
-    delta_time: Fixed,
-    state: &mut PhysicsState,
-) {
-    let initial_position = ball.position;
-    let initial_velocity = ball.velocity;
-
-    crate::bench::start("GRAVITY");
-    ball.velocity =
-        initial_velocity + vec2(num!(0), state.config.gravity_y) * delta_time;
-    crate::bench::stop("GRAVITY");
-
-    crate::bench::start("POSITION_UPDATE");
-    ball.position = initial_position + ball.velocity * delta_time;
-    crate::bench::stop("POSITION_UPDATE");
-
-    crate::bench::start("WALL");
-    handle_ball_wall_collisions(ball);
-    crate::bench::stop("WALL");
-
-    if ball.position.y > num!(SCREEN_BOTTOM) {
-        ball.velocity = vec2(num!(ZERO), num!(ZERO));
-        return;
-    }
-
-    super::collision::handle_ball_peg_collisions(ball, pegs, state);
 }

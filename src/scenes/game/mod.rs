@@ -12,10 +12,9 @@ pub mod ball;
 pub mod peg;
 pub mod physics;
 
-// Game constants
-const MAX_HORIZONTAL_VELOCITY: f32 = 100.0; // Maximum horizontal velocity
-const VELOCITY_CHANGE_RATE: f32 = 120.0; // Velocity change per second
-const DELTA_TIME: f32 = 1.0 / 60.0; // 60 FPS
+const MAX_HORIZONTAL_VELOCITY: f32 = 100.0;
+const VELOCITY_CHANGE_RATE: f32 = 120.0;
+const DELTA_TIME: f32 = 1.0 / 60.0;
 const BALL_START_X: f32 = 21.0;
 const BALL_START_Y: f32 = 0.0;
 const SCREEN_BOTTOM: f32 = 180.0;
@@ -89,9 +88,9 @@ fn update_falling(
     pegs: &mut Pegs,
     physics: &mut PhysicsState,
 ) -> Result<State, Error> {
-    crate::bench::start("BALL");
+    crate::bench::start("UPDATE_BALL_TOP");
     physics::update_ball(ball, pegs, num!(DELTA_TIME), physics);
-    crate::bench::stop("BALL");
+    crate::bench::stop("UPDATE_BALL_TOP");
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
         return Ok(State::Counting);
@@ -112,7 +111,7 @@ fn update_counting(ball: &mut Ball, pegs: &mut Pegs) -> Result<State, Error> {
 pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut state = State::Aiming;
     let mut game_state = GameState {
-        horizontal_velocity: num!(BALL_START_Y), // Start with no horizontal velocity
+        horizontal_velocity: num!(BALL_START_Y),
         left_pressed: false,
         right_pressed: false,
     };
@@ -134,15 +133,16 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     loop {
         input.update();
 
+        crate::bench::start("UPDATE_PEGS_TOP");
+        physics::update_pegs(&mut pegs, num!(DELTA_TIME), &mut physics);
+        crate::bench::stop("UPDATE_PEGS_TOP");
+
         state = match state {
             State::Aiming => {
                 update_aiming(&mut input, &mut game_state, &mut ball)?
             }
             State::Falling => {
-                crate::bench::start("FALLING");
-                let state = update_falling(&mut ball, &mut pegs, &mut physics)?;
-                crate::bench::stop("FALLING");
-                state
+                update_falling(&mut ball, &mut pegs, &mut physics)?
             }
             State::Counting => {
                 crate::bench::log();

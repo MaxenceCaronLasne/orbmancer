@@ -1,4 +1,6 @@
-use crate::types::{Coordinate, Fixed};
+use core::fmt::Formatter;
+
+use crate::types::{Coordinate, Fixed, Force};
 use agb::display::GraphicsFrame;
 use agb::display::object::Object;
 use agb::fixnum::{num, vec2};
@@ -16,24 +18,26 @@ include_aseprite!(
 pub type PegIndex = u8;
 
 pub struct Pegs {
-    position: [Coordinate; MAX_PEGS as usize],
-    force_radius_squared: [Fixed; MAX_PEGS as usize],
-    sprite: [Object; MAX_PEGS as usize],
-    touched: [bool; MAX_PEGS as usize],
-    present: [bool; MAX_PEGS as usize],
+    position: [Coordinate; MAX_PEGS],
+    velocity: [Force; MAX_PEGS],
+    force_radius_squared: [Fixed; MAX_PEGS],
+    sprite: [Object; MAX_PEGS],
+    touched: [bool; MAX_PEGS],
+    present: [bool; MAX_PEGS],
     pub count: u8,
 }
 
 impl Pegs {
     pub fn new() -> Self {
         Self {
-            position: [vec2(num!(0.0), num!(0.0)); MAX_PEGS as usize],
-            force_radius_squared: [num!(0.0); MAX_PEGS as usize],
+            position: [vec2(num!(0.0), num!(0.0)); MAX_PEGS],
+            velocity: [vec2(num!(0.0), num!(0.0)); MAX_PEGS],
+            force_radius_squared: [num!(0.0); MAX_PEGS],
             sprite: core::array::from_fn(|_| {
                 Object::new(sprites::PEG.sprite(0))
             }),
-            touched: [false; MAX_PEGS as usize],
-            present: [false; MAX_PEGS as usize],
+            touched: [false; MAX_PEGS],
+            present: [false; MAX_PEGS],
             count: 0,
         }
     }
@@ -62,6 +66,17 @@ impl Pegs {
         self.position[index as usize]
     }
 
+    pub fn set_position(&mut self, index: PegIndex, new_value: Coordinate) {
+        self.position[index as usize] = new_value
+    }
+
+    pub fn velocity(&self, index: PegIndex) -> Force {
+        self.velocity[index as usize]
+    }
+
+    pub fn set_velocity(&mut self, index: PegIndex, new_value: Force) {
+        self.velocity[index as usize] = new_value
+    }
 
     pub fn touch(&mut self, index: PegIndex) {
         if index < self.count {

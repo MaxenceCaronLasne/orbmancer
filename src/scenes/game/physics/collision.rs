@@ -1,10 +1,19 @@
-use crate::scenes::game::peg::PegIndex;
-use crate::scenes::game::{Ball, ball, peg::Pegs};
-use agb::fixnum::num;
-
 use super::constants::{
     LEFT_WALL, PhysicsConfig, RIGHT_WALL, WALL_BOUNCE_DAMPING, ZERO,
 };
+use super::state::PhysicsState;
+use crate::scenes::game::peg::PegIndex;
+use crate::scenes::game::{Ball, ball, peg::Pegs};
+use agb::fixnum::{num, vec2};
+
+const COLLISION_DISTANCE_F32: f32 =
+    ball::RADIUS + crate::scenes::game::peg::RADIUS;
+const COLLISION_DISTANCE_SQUARED_F32: f32 =
+    COLLISION_DISTANCE_F32 * COLLISION_DISTANCE_F32;
+
+const PEG_COLLISION_DISTANCE_F32: f32 = 2.0 * crate::scenes::game::peg::RADIUS;
+const PEG_COLLISION_DISTANCE_SQUARED_F32: f32 =
+    PEG_COLLISION_DISTANCE_F32 * PEG_COLLISION_DISTANCE_F32;
 
 pub fn handle_ball_wall_collisions(ball: &mut Ball) {
     let ball_radius = num!(ball::RADIUS);
@@ -21,31 +30,41 @@ pub fn handle_ball_wall_collisions(ball: &mut Ball) {
 pub fn handle_ball_peg_collisions(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics_state: &mut super::state::PhysicsState,
+    physics_state: &mut PhysicsState,
 ) {
-    let ball_radius = num!(ball::RADIUS);
-    let peg_radius = num!(crate::scenes::game::peg::RADIUS);
-    let collision_distance = ball_radius + peg_radius;
-    let collision_distance_squared = collision_distance * collision_distance;
-
-    crate::bench::start("GRID");
     let neighbor_count = physics_state.fill_neighbors(ball.position);
-    crate::bench::stop("GRID");
 
     let neighbors = physics_state.neighbors(neighbor_count);
-    crate::bench::start("COLLISION");
-    check_collisions(
+
+    check_ball_collisions(
         ball,
         pegs,
         neighbors,
-        collision_distance_squared,
+        num!(COLLISION_DISTANCE_SQUARED_F32),
         physics_state.config(),
     );
-    crate::bench::stop("COLLISION");
+}
+
+pub fn handle_peg_peg_collisions(
+    pegs: &mut Pegs,
+    physics_state: &mut PhysicsState,
+) {
+    for i in 0..pegs.count {
+        let neighbor_count = physics_state.fill_neighbors(pegs.position(i));
+        let neighbors = physics_state.neighbors(neighbor_count);
+
+        check_peg_collisions(
+            i,
+            pegs,
+            neighbors,
+            num!(PEG_COLLISION_DISTANCE_SQUARED_F32),
+            physics_state.config(),
+        );
+    }
 }
 
 #[inline]
-fn check_collisions(
+fn check_ball_collisions(
     ball: &mut Ball,
     pegs: &mut Pegs,
     neighbors: &[PegIndex],
@@ -57,23 +76,71 @@ fn check_collisions(
             continue;
         }
         let distance_vector = ball.position - pegs.position(peg_id);
-        crate::bench::start("DISTANCE_CALC");
         let distance_squared = distance_vector.magnitude_squared();
-        crate::bench::stop("DISTANCE_CALC");
         if distance_squared < collision_distance_squared
             && distance_squared > num!(ZERO)
         {
             pegs.touch(peg_id);
-            crate::bench::start("COLLISION_RESPONSE");
-            let collision_distance = (collision_distance_squared).sqrt();
             let distance = distance_squared.sqrt();
-            let normal = distance_vector / distance;
+            let inv_distance = num!(1.0) / distance;
+            let normal = distance_vector * inv_distance;
             let velocity_along_normal = ball.velocity.dot(normal);
             ball.velocity -= normal * (velocity_along_normal * num!(2.0));
             ball.velocity *= config.peg_bounce_damping;
-            let overlap = collision_distance - distance;
+            let overlap = num!(COLLISION_DISTANCE_F32) - distance;
             ball.position += normal * overlap;
-            crate::bench::stop("COLLISION_RESPONSE");
+        }
+    }
+}
+
+#[inline]
+fn check_peg_collisions(
+    index: PegIndex,
+    pegs: &mut Pegs,
+    neighbors: &[PegIndex],
+    collision_distance_squared: crate::types::Fixed,
+    config: &PhysicsConfig,
+) {
+    for &peg_id in neighbors {
+        if peg_id >= pegs.count || peg_id == index {
+            continue;
+        }
+        let distance_vector = pegs.position(index) - pegs.position(peg_id);
+        let distance_squared = distance_vector.magnitude_squared();
+        if distance_squared < collision_distance_squared
+            && distance_squared > num!(ZERO)
+        {
+            let distance = distance_squared.sqrt();
+            let inv_distance = num!(1.0) / distance;
+            let normal = distance_vector * inv_distance;
+            
+            let velocity1 = pegs.velocity(index);
+            let velocity2 = pegs.velocity(peg_id);
+            
+            let velocity_diff = velocity1 - velocity2;
+            let velocity_along_normal = velocity_diff.dot(normal);
+            
+            if velocity_along_normal > num!(0.0) {
+                continue;
+            }
+            
+            let separation_impulse = num!(0.5);
+            let impulse = if velocity_along_normal.abs() < num!(0.01) {
+                normal * separation_impulse
+            } else {
+                normal * (num!(-2.0) * velocity_along_normal / num!(2.0))
+            };
+            
+            let new_velocity1 = (velocity1 + impulse) * config.peg_bounce_damping;
+            let new_velocity2 = (velocity2 - impulse) * config.peg_bounce_damping;
+            
+            pegs.set_velocity(index, new_velocity1);
+            pegs.set_velocity(peg_id, new_velocity2);
+            
+            let overlap = num!(PEG_COLLISION_DISTANCE_F32) - distance;
+            let separation = normal * (overlap * num!(0.5));
+            pegs.set_position(index, pegs.position(index) + separation);
+            pegs.set_position(peg_id, pegs.position(peg_id) - separation);
         }
     }
 }

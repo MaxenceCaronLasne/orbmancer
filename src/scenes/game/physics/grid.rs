@@ -65,7 +65,7 @@ impl Grid {
     pub fn fill_neighbors(
         &self,
         position: Coordinate,
-        buffer: &mut [PegIndex],
+        buffer: &mut [PegIndex; 16],
     ) -> usize {
         let center = match Self::coord_to_grid(position) {
             Ok(coords) => coords,
@@ -81,7 +81,8 @@ impl Grid {
 
                 if let (Some(x), Some(y)) = (target_x, target_y) {
                     let cell_coord = Vector2D::new(x, y);
-                    if let Some(pegs) = self.hash_map.get(&cell_coord) {
+                    let maybe_pegs = self.hash_map.get(&cell_coord);
+                    if let Some(pegs) = maybe_pegs {
                         for &peg_id in pegs {
                             if count >= buffer.len() {
                                 return count;

@@ -11,11 +11,14 @@ pub const RIGHT_WALL: f32 = 160.0;
 pub const SCREEN_BOTTOM: f32 = 180.0;
 pub const WALL_BOUNCE_DAMPING: f32 = 0.9;
 pub const PEG_BOUNCE_DAMPING: f32 = 0.9;
+pub const PEG_VELOCITY_DAMPING: f32 = 0.98;
+pub const PEG_MIN_VELOCITY: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug)]
 pub struct PhysicsConfig {
     pub gravity_y: ForceStrength,
     pub peg_bounce_damping: DampingFactor,
+    pub peg_velocity_damping: DampingFactor,
 }
 
 impl Default for PhysicsConfig {
@@ -23,6 +26,7 @@ impl Default for PhysicsConfig {
         Self {
             gravity_y: num!(GRAVITY_Y),
             peg_bounce_damping: num!(PEG_BOUNCE_DAMPING),
+            peg_velocity_damping: num!(PEG_VELOCITY_DAMPING),
         }
     }
 }
