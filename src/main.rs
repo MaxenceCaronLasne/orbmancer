@@ -4,33 +4,27 @@
 #![cfg_attr(test, reexport_test_harness_main = "test_main")]
 #![cfg_attr(test, test_runner(agb::test_runner::test_runner))]
 #![feature(allocator_api)]
+
+use agb::fixnum::{FixedNum, Vector2D};
+
 extern crate alloc;
 
 mod bench;
 mod error;
+mod physics;
 mod scenes;
-mod types;
 
 #[cfg(test)]
 mod test_scenes;
 
-fn main(gba: agb::Gba) -> Result<(), error::Error> {
-    scenes::main(gba)
-}
-
-#[cfg(test)]
-#[agb::entry]
-fn main_test(mut _gba: agb::Gba) -> ! {
-    test_main();
-    loop {
-        agb::display::busy_wait_for_vblank();
-    }
-}
+pub type Fixed = FixedNum<8>;
+pub type Coordinates = Vector2D<Fixed>;
+pub type Force = Vector2D<Fixed>;
 
 #[cfg(not(test))]
 #[agb::entry]
 fn entry(gba: agb::Gba) -> ! {
-    match main(gba) {
+    match scenes::main(gba) {
         Ok(()) => {
             agb::println!("Quitting...");
         }
@@ -41,6 +35,15 @@ fn entry(gba: agb::Gba) -> ! {
 
     loop {
         agb::halt();
+    }
+}
+
+#[cfg(test)]
+#[agb::entry]
+fn main_test(mut _gba: agb::Gba) -> ! {
+    test_main();
+    loop {
+        agb::display::busy_wait_for_vblank();
     }
 }
 

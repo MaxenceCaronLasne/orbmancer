@@ -1,4 +1,7 @@
 #[derive(Debug)]
 pub enum Error {
-    GridError,
+    Convertion,
+    IndexTooBig,
+    CellFull,
+    NeighborNotFound,
 }
