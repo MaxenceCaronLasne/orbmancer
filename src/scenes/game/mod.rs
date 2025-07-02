@@ -31,14 +31,14 @@ struct GameState {
 }
 
 fn spawn_pegs(rng: &mut RandomNumberGenerator) -> Pegs {
-    let peg_count = 30;
+    let peg_count = 50;
     let screen_width = 140;
     let screen_height = 120;
     let min_x = 20;
     let min_y = 30;
 
     let mut positions = [vec2(num!(0), num!(0)); MAX_PEGS];
-    let mut force_radius_squared = [num!(10); MAX_PEGS];
+    let mut force_radius_squared = [num!(20); MAX_PEGS];
     let mut showable = [false; MAX_PEGS];
     let mut collidable = [false; MAX_PEGS];
 
@@ -95,7 +95,7 @@ fn update_aiming(
 fn update_falling(
     ball: &mut Ball,
     pegs: &mut Pegs,
-    physics: &mut Physics,
+    physics: &mut Physics<MAX_PEGS>,
 ) -> Result<State, Error> {
     crate::bench::start("UPDATE_BALL_TOP");
     let (position, velocity, touched) = physics
@@ -146,7 +146,8 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
     let mut rng = RandomNumberGenerator::new();
     let mut pegs = spawn_pegs(&mut rng);
-    let mut physics = Physics::new(&pegs.positions, &pegs.collidable)?;
+    let mut physics =
+        Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
 
     crate::bench::init(&mut timers);
 
@@ -154,7 +155,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         input.update();
 
         crate::bench::start("PEG_UPDATE");
-        physics.move_from_fields::<3000, 10, 0, 0, 160, 160>(
+        physics.move_from_fields::<3000, 10, 10, 10, 150, 150, 10>(
             &mut pegs.positions,
             &mut pegs.velocities,
             &pegs.collidable,

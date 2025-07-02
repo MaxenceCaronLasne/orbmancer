@@ -1,4 +1,4 @@
-use agb::fixnum::Vector2D;
+use agb::fixnum::{Vector2D, vec2, num};
 use alloc::vec::Vec;
 
 use crate::Coordinates;
@@ -21,10 +21,14 @@ where
     fn spatial_to_grid_coords(
         coordinates: &Coordinates,
     ) -> Result<(usize, usize), Error> {
-        let round = coordinates.round();
+        const GRID_MAX_COORD: i32 = ((NB_WIDTH - 1) * (1 << SHIFT_VALUE)) as i32;
+        const GRID_MIN_COORD: i32 = 0;
 
-        let unsigned =
-            Vector2D::new(round.x.unsigned_abs(), round.y.unsigned_abs());
+        let clamped_x = coordinates.x.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+        let clamped_y = coordinates.y.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+
+        let round = vec2(clamped_x, clamped_y).round();
+        let unsigned = Vector2D::new(round.x.unsigned_abs(), round.y.unsigned_abs());
 
         match (
             (unsigned.x >> SHIFT_VALUE).try_into(),
@@ -133,4 +137,14 @@ where
 
         Ok(&self.neighbors)
     }
+}
+
+pub fn clamp_position_to_grid(position: Coordinates) -> Coordinates {
+    const GRID_MAX_COORD: i32 = ((NB_WIDTH - 1) * (1 << SHIFT_VALUE)) as i32;
+    const GRID_MIN_COORD: i32 = 0;
+
+    let clamped_x = position.x.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+    let clamped_y = position.y.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+
+    vec2(clamped_x, clamped_y)
 }

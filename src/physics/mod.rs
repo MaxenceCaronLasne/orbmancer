@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::{Coordinates, Fixed, Force};
-use agb::fixnum::num;
+use agb::fixnum::{num, vec2};
 use alloc::vec::Vec;
 
 mod grid;
@@ -8,19 +8,21 @@ mod grid;
 const WALL_BOUNCE_DAMPING: f32 = 0.9;
 const BOUNCE_DAMPING: f32 = 0.9;
 
-pub struct Physics {
+pub struct Physics<const N: usize> {
     neighbors: grid::Grid2D,
     touched: Vec<usize>,
+    frame_counter: usize,
 }
 
-impl Physics {
+impl<const N: usize> Physics<N> {
     pub fn new(
-        positions: &[Coordinates],
-        collidable: &[bool],
+        positions: &[Coordinates; N],
+        collidable: &[bool; N],
     ) -> Result<Self, Error> {
         Ok(Self {
             neighbors: grid::Grid2D::new(positions, collidable)?,
             touched: Vec::new(),
+            frame_counter: 0,
         })
     }
 
@@ -60,8 +62,8 @@ impl Physics {
         &mut self,
         mut position: Coordinates,
         mut velocity: Force,
-        positions: &[Coordinates],
-        collidable: &[bool],
+        positions: &[Coordinates; N],
+        collidable: &[bool; N],
     ) -> Result<(Coordinates, Force, &[usize]), Error> {
         self.touched.clear();
         let neighbors = self.neighbors.get_neighbors(position, 1)?;
@@ -107,8 +109,8 @@ impl Physics {
         &mut self,
         mut position: Coordinates,
         mut velocity: Force,
-        positions: &[Coordinates],
-        collidable: &[bool],
+        positions: &[Coordinates; N],
+        collidable: &[bool; N],
         delta: Fixed,
     ) -> Result<(Coordinates, Force, &[usize]), Error> {
         velocity += Force::new(num!(0), Fixed::new(GRAVITY)) * delta;
@@ -129,6 +131,67 @@ impl Physics {
         Ok((position, velocity, touched))
     }
 
+    fn calculate_peg_forces<const REPULSION_STRENGTH: i32>(
+        &mut self,
+        index: usize,
+        this_position: Coordinates,
+        this_force_radius: Fixed,
+        positions: &[Coordinates; N],
+        velocities: &mut [Force; N],
+        delta: Fixed,
+    ) -> Result<(), Error> {
+        let neighbors = self.neighbors.get_neighbors(this_position, 5)?;
+
+        for &i in neighbors {
+            if i as usize == index {
+                continue;
+            }
+
+            let distance_vector = this_position - positions[i as usize];
+            let distance_squared = distance_vector.magnitude_squared();
+
+            if distance_squared < num!(0.1) {
+                continue;
+            }
+
+            if distance_squared < this_force_radius {
+                let normal = distance_vector / distance_squared;
+                let force_magnitude =
+                    Fixed::new(REPULSION_STRENGTH * REPULSION_STRENGTH)
+                        / distance_squared;
+                let repulsion_force = normal * force_magnitude;
+                let velocity = velocities[index] + repulsion_force * delta;
+                velocities[index] = vec2(
+                    velocity.x.clamp(num!(-50), num!(50)),
+                    velocity.y.clamp(num!(-50), num!(50)),
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn apply_movement_and_wall_collision<
+        const LEFT_WALL: i32,
+        const UP_WALL: i32,
+        const RIGHT_WALL: i32,
+        const DOWN_WALL: i32,
+    >(
+        index: usize,
+        positions: &mut [Coordinates; N],
+        velocity: &mut [Force; N],
+    ) {
+        velocity[index] *= num!(0.98);
+
+        (positions[index], velocity[index]) =
+            Self::move_and_collide_with_walls::<
+                LEFT_WALL,
+                UP_WALL,
+                RIGHT_WALL,
+                DOWN_WALL,
+            >(positions[index], velocity[index], num!(4));
+    }
+
     pub fn move_from_fields<
         const REPULSION_STRENGTH: i32,
         const ATTRACTION_STRENGTH: i32,
@@ -136,81 +199,52 @@ impl Physics {
         const UP_WALL: i32,
         const RIGHT_WALL: i32,
         const DOWN_WALL: i32,
+        const PARTIAL: usize,
     >(
         &mut self,
-        positions: &mut [Coordinates],
-        velocity: &mut [Force],
-        collidable: &[bool],
-        force_radius_squared: &[Fixed],
+        positions: &mut [Coordinates; N],
+        velocities: &mut [Force; N],
+        collidable: &[bool; N],
+        force_radius_squared: &[Fixed; N],
         delta: Fixed,
     ) -> Result<(), Error> {
-        for index in 0..positions.len() {
-            if !collidable[index] {
+        self.frame_counter = self.frame_counter.wrapping_add(1);
+
+        for i in 0..N {
+            if !collidable[i] {
                 continue;
             }
 
-            let this_position = positions[index];
-            let this_force_radius = force_radius_squared[index];
+            let position = positions[i];
+            let force = force_radius_squared[i];
+            let velocity = velocities[i];
 
-            let neighbors = self.neighbors.get_neighbors(this_position, 2)?;
-
-            for &i in neighbors {
-                if i as usize == index {
-                    continue;
-                }
-
-                let distance_vector = this_position - positions[i as usize];
-                let distance_squared = distance_vector.magnitude_squared();
-
-                if distance_squared > num!(0.1)
-                    && distance_squared < this_force_radius
-                {
-                    let normal = distance_vector / distance_squared;
-                    let force_magnitude =
-                        Fixed::new(REPULSION_STRENGTH * REPULSION_STRENGTH)
-                            / distance_squared;
-                    let repulsion_force = normal * force_magnitude;
-                    velocity[index] += repulsion_force * delta;
-                }
+            if i % PARTIAL == self.frame_counter % PARTIAL {
+                self.calculate_peg_forces::<REPULSION_STRENGTH>(
+                    i,
+                    position,
+                    force,
+                    positions,
+                    velocities,
+                    delta * num!(PARTIAL),
+                )?;
             }
 
-            velocity[index] *= num!(0.98);
+            Self::apply_movement_and_wall_collision::<
+                LEFT_WALL,
+                UP_WALL,
+                RIGHT_WALL,
+                DOWN_WALL,
+            >(i, positions, velocities);
 
-            // crate::bench::start("4_CHECK_ZERO");
-            // if velocity[index].magnitude_squared() < num!(0.01) {
-            //     velocity[index] = Force::new(num!(0), num!(0));
-            // }
-            // crate::bench::stop("4_CHECK_ZERO");
+            let new_pos =
+                grid::clamp_position_to_grid(position + velocity * delta);
 
-            (positions[index], velocity[index]) =
-                Self::move_and_collide_with_walls::<
-                    LEFT_WALL,
-                    UP_WALL,
-                    RIGHT_WALL,
-                    DOWN_WALL,
-                >(positions[index], velocity[index], num!(4));
-        }
+            positions[i] = new_pos;
 
-        let mut positions_to_update = Vec::new();
-        for index in 0..positions.len() {
-            if !collidable[index] {
-                continue;
+            if new_pos != position {
+                self.neighbors.update(i, position, new_pos)?;
             }
-
-            let initial_position = positions[index];
-            positions[index] += velocity[index] * delta;
-
-            if positions[index] != initial_position {
-                positions_to_update.push((
-                    index,
-                    initial_position,
-                    positions[index],
-                ));
-            }
-        }
-
-        for (index, old_pos, new_pos) in positions_to_update {
-            self.neighbors.update(index, old_pos, new_pos)?;
         }
 
         Ok(())
