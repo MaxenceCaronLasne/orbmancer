@@ -55,6 +55,52 @@ impl<const N: usize> Physics<N> {
         (position, velocity)
     }
 
+    fn move_and_collide_with_given_wall(
+        mut position: Coordinates,
+        mut velocity: Force,
+        radius: Fixed,
+        wall_start: Coordinates,
+        wall_end: Coordinates,
+    ) -> (Coordinates, Force) {
+        // 1. Find closest point on line segment to ball center
+        let wall_vector = wall_end - wall_start;
+        let ball_to_start = position - wall_start;
+
+        let wall_length_squared = wall_vector.magnitude_squared();
+        if wall_length_squared <= num!(0.001) {
+            return (position, velocity); // Degenerate case
+        }
+
+        let t = (ball_to_start.dot(wall_vector) / wall_length_squared)
+            .clamp(num!(0), num!(1));
+        let closest_point = wall_start + wall_vector * t;
+
+        // 2. Check if ball intersects the wall segment
+        let distance_vector = position - closest_point;
+        let distance_squared = distance_vector.magnitude_squared();
+        let radius_squared = radius * radius;
+
+        if distance_squared < radius_squared {
+            // 3. Determine collision normal and side
+            let distance = distance_squared.sqrt();
+            if distance > num!(0.001) {
+                let normal = distance_vector / distance;
+
+                // Reposition ball outside the wall
+                position = closest_point + normal * radius;
+
+                // Apply velocity reflection along the normal
+                let velocity_along_normal = velocity.dot(normal);
+                velocity = velocity
+                    - normal
+                        * (velocity_along_normal * num!(2))
+                        * num!(WALL_BOUNCE_DAMPING);
+            }
+        }
+
+        (position, velocity)
+    }
+
     fn move_and_collide_with_statics<
         const MOVING_RADIUS: i32,
         const STATIC_RADIUS: i32,
@@ -112,6 +158,7 @@ impl<const N: usize> Physics<N> {
         positions: &[Coordinates; N],
         collidable: &[bool; N],
         delta: Fixed,
+        walls: &[(Coordinates, Coordinates)],
     ) -> Result<(Coordinates, Force, &[usize]), Error> {
         velocity += Force::new(num!(0), Fixed::new(GRAVITY)) * delta;
         position += velocity * delta;
@@ -122,6 +169,16 @@ impl<const N: usize> Physics<N> {
             RIGHT_WALL,
             DOWN_WALL,
         >(position, velocity, num!(1));
+
+        for &(wall_start, wall_end) in walls {
+            (position, velocity) = Self::move_and_collide_with_given_wall(
+                position,
+                velocity,
+                Fixed::new(MOVING_RADIUS),
+                wall_start,
+                wall_end,
+            );
+        }
 
         let (position, velocity, touched) = self
             .move_and_collide_with_statics::<MOVING_RADIUS, STATIC_RADIUS>(
