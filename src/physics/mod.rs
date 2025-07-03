@@ -62,7 +62,6 @@ impl<const N: usize> Physics<N> {
         wall_start: Coordinates,
         wall_end: Coordinates,
     ) -> (Coordinates, Force) {
-        // 1. Find closest point on line segment to ball center
         let wall_vector = wall_end - wall_start;
         let ball_to_start = position - wall_start;
 
@@ -75,26 +74,21 @@ impl<const N: usize> Physics<N> {
             .clamp(num!(0), num!(1));
         let closest_point = wall_start + wall_vector * t;
 
-        // 2. Check if ball intersects the wall segment
         let distance_vector = position - closest_point;
         let distance_squared = distance_vector.magnitude_squared();
         let radius_squared = radius * radius;
 
         if distance_squared < radius_squared {
-            // 3. Determine collision normal and side
             let distance = distance_squared.sqrt();
             if distance > num!(0.001) {
                 let normal = distance_vector / distance;
 
-                // Reposition ball outside the wall
                 position = closest_point + normal * radius;
 
-                // Apply velocity reflection along the normal
                 let velocity_along_normal = velocity.dot(normal);
-                velocity = velocity
-                    - normal
-                        * (velocity_along_normal * num!(2))
-                        * num!(WALL_BOUNCE_DAMPING);
+                velocity -= -normal
+                    * (velocity_along_normal * num!(2))
+                    * num!(WALL_BOUNCE_DAMPING);
             }
         }
 

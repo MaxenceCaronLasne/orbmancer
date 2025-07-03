@@ -14,8 +14,6 @@ include_aseprite!(
 const MIN_X: f32 = 0.0;
 const MAX_X: f32 = 140.0;
 const SPEED: f32 = 1.0;
-const BUCKET_HALF_WIDTH: f32 = 16.0;
-const BUCKET_HALF_HEIGHT: f32 = 8.0;
 
 pub struct Bucket {
     pub position: Coordinates,
