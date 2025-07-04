@@ -7,7 +7,9 @@ use crate::scenes::game::score::Score;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
+use alloc::vec;
 use ball::Ball;
+use effect::{BallEffect, BucketEffect};
 use peg::{Kind, Pegs};
 
 pub mod ball;
@@ -29,7 +31,7 @@ const MAX_PEGS: usize = 50;
 enum State {
     Aiming,
     Falling,
-    Counting,
+    Counting { bucketed: bool },
 }
 
 struct GameState {
@@ -115,6 +117,7 @@ fn update_falling(
     physics: &mut Physics<MAX_PEGS>,
     score: &mut Score,
     bucket: &Bucket,
+    ball_effects: &[BallEffect],
 ) -> Result<State, Error> {
     ball.update();
 
@@ -135,18 +138,27 @@ fn update_falling(
     for &i in touched {
         pegs.collidable[i] = false;
 
-        match pegs.kind[i] {
-            Kind::Blue => score.add_base(1),
-            Kind::Red => score.add_mult(1),
+        let (mut base, mut mult) = match pegs.kind[i] {
+            Kind::Blue => (1, 0),
+            Kind::Red => (0, 1),
+        };
+
+        for e in ball_effects {
+            (base, mult) = e.apply(base, mult);
         }
+
+        score.base += base;
+        score.mult += mult;
+
+        agb::println!("Added: ({}, {})", base, mult);
     }
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
-        return Ok(State::Counting);
+        return Ok(State::Counting { bucketed: false });
     }
 
     if bucket.is_in_bucket(ball.position) {
-        agb::println!("Bucketed!");
+        return Ok(State::Counting { bucketed: true });
     }
 
     Ok(State::Falling)
@@ -156,11 +168,20 @@ fn update_counting(
     ball: &mut Ball,
     pegs: &mut Pegs<MAX_PEGS>,
     score: &mut Score,
+    is_bucketed: bool,
+    bucket_effects: &[BucketEffect],
 ) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
     for i in 0..MAX_PEGS {
         if !pegs.collidable[i] {
             pegs.showable[i] = false;
+        }
+    }
+
+    if is_bucketed {
+        agb::println!("Bucket!");
+        for e in bucket_effects {
+            e.apply(score);
         }
     }
 
@@ -189,6 +210,8 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut physics =
         Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
     let mut score = Score::new();
+    let ball_effects = vec![BallEffect::Identity, BallEffect::AddMult(3)];
+    let bucket_effects = vec![BucketEffect::Identity];
 
     crate::bench::init(&mut timers);
 
@@ -217,10 +240,17 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                 &mut physics,
                 &mut score,
                 &bucket,
+                &ball_effects,
             )?,
-            State::Counting => {
+            State::Counting { bucketed } => {
                 crate::bench::log();
-                update_counting(&mut ball, &mut pegs, &mut score)?
+                update_counting(
+                    &mut ball,
+                    &mut pegs,
+                    &mut score,
+                    bucketed,
+                    &bucket_effects,
+                )?
             }
         };
 
