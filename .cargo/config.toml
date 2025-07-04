@@ -17,7 +17,7 @@ rustdocflags = [
   "-Cforce-frame-pointers=yes",
 ]
 
-runner = ["mgba-qt", "-C", "logToStdout=1", "-C", "logLevel.gba.debug=127"]
+runner = ["sh", "-c", "if [ $(uname) = 'Darwin' ]; then exec mGBA -C logToStdout=1 -C logLevel.gba.debug=127 \"$@\"; else exec mgba-qt -C logToStdout=1 -C logLevel.gba.debug=127 \"$@\"; fi", "--"]
 
 # [target.armv4t-none-eabi]
 # rustflags = [
