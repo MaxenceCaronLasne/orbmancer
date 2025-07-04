@@ -9,11 +9,13 @@ use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
 use alloc::vec;
 use ball::Ball;
+use direction_viewer::DirectionViewer;
 use effect::{BallEffect, BucketEffect};
 use peg::{Kind, Pegs};
 
 pub mod ball;
 pub mod bucket;
+pub mod direction_viewer;
 pub mod effect;
 pub mod peg;
 pub mod score;
@@ -81,6 +83,7 @@ fn update_aiming(
     input: &mut ButtonController,
     game_state: &mut GameState,
     ball: &mut Ball,
+    direction_viewer: &mut DirectionViewer,
 ) -> Result<State, Error> {
     ball.reset_sprite();
 
@@ -101,6 +104,8 @@ fn update_aiming(
 
     game_state.left_pressed = left_currently_pressed;
     game_state.right_pressed = right_currently_pressed;
+
+    direction_viewer.update_direction(game_state.horizontal_velocity);
 
     if input.is_just_pressed(Button::A) {
         ball.velocity =
@@ -172,6 +177,7 @@ fn update_counting(
     bucket_effects: &[BucketEffect],
 ) -> Result<State, Error> {
     ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
+
     for i in 0..MAX_PEGS {
         if !pegs.collidable[i] {
             pegs.showable[i] = false;
@@ -203,6 +209,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut timers = gba.timers.timers();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
+    let mut direction_viewer = DirectionViewer::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
     let mut bucket =
         Bucket::new(vec2(num!(BUCKET_START_X), num!(BUCKET_START_Y)));
     let mut rng = RandomNumberGenerator::new();
@@ -232,7 +239,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
 
         state = match state {
             State::Aiming => {
-                update_aiming(&mut input, &mut game_state, &mut ball)?
+                update_aiming(&mut input, &mut game_state, &mut ball, &mut direction_viewer)?
             }
             State::Falling => update_falling(
                 &mut ball,
@@ -259,6 +266,10 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         pegs.show(&mut frame);
         ball.show(&mut frame);
         bucket.show(&mut frame);
+        
+        if matches!(state, State::Aiming) {
+            direction_viewer.show(&mut frame);
+        }
 
         frame.commit();
     }
