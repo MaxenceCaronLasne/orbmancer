@@ -12,6 +12,7 @@ use peg::{Kind, Pegs};
 
 pub mod ball;
 pub mod bucket;
+pub mod effect;
 pub mod peg;
 pub mod score;
 
