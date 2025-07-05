@@ -4,13 +4,15 @@ use crate::physics::Physics;
 use crate::scenes::Scene;
 use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
+use agb::display::GraphicsFrame;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
 use alloc::vec;
+use alloc::vec::Vec;
 use ball::Ball;
 use direction_viewer::DirectionViewer;
-use effect::{BallData, BallEffect, BucketEffect};
+use effect::{BallData, BucketEffect};
 use peg::{Kind, Pegs};
 
 pub mod ball;
@@ -28,7 +30,6 @@ const BALL_START_Y: f32 = 0.0;
 const BUCKET_START_X: f32 = 80.0;
 const BUCKET_START_Y: f32 = 140.0;
 const SCREEN_BOTTOM: f32 = 168.0;
-const MAX_PEGS: usize = 50;
 const TARGET_SCORE: i32 = 1000;
 
 enum State {
@@ -37,270 +38,283 @@ enum State {
     Counting { is_bucketed: bool },
 }
 
-struct GameState {
+struct GameState<const MAX_PEGS: usize> {
+    ball: Ball,
+    ball_data: Vec<BallData>,
+    bucket: Bucket,
+    bucket_effects: Vec<BucketEffect>,
+    current_ball_data: Option<BallData>,
     horizontal_velocity: Fixed,
-    left_pressed: bool,
-    right_pressed: bool,
+    pegs: Pegs<MAX_PEGS>,
+    physics: Physics<MAX_PEGS>,
+    score: Score,
+    state: State,
+    direction_viewer: DirectionViewer,
 }
 
-fn spawn_pegs(rng: &mut RandomNumberGenerator) -> Pegs<MAX_PEGS> {
-    let peg_count = 50;
-    let screen_width = 140;
-    let screen_height = 120;
-    let min_x = 20;
-    let min_y = 30;
+impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
+    pub fn new() -> Result<Self, Error> {
+        let rng = &mut RandomNumberGenerator::new();
+        let pegs = Self::spawn_pegs(rng);
+        let physics =
+            Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
 
-    let mut positions = [vec2(num!(0), num!(0)); MAX_PEGS];
-    let mut force_radius_squared = [num!(20); MAX_PEGS];
-    let mut showable = [false; MAX_PEGS];
-    let mut collidable = [false; MAX_PEGS];
-    let mut kind = [Kind::Blue; MAX_PEGS];
+        Ok(Self {
+            ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
+            ball_data: vec![
+                BallData::empty(),
+                BallData::empty(),
+                BallData::empty(),
+            ],
+            bucket: Bucket::new(vec2(
+                num!(BUCKET_START_X),
+                num!(BUCKET_START_Y),
+            )),
+            bucket_effects: vec![BucketEffect::Identity],
+            current_ball_data: None,
+            direction_viewer: DirectionViewer::new(vec2(
+                num!(BALL_START_X),
+                num!(BALL_START_Y),
+            )),
+            horizontal_velocity: num!(BALL_START_Y),
+            pegs,
+            physics,
+            score: Score::new(),
+            state: State::Aiming,
+        })
+    }
 
-    for i in 0..peg_count {
-        let x = min_x + (rng.next_i32().abs() % (screen_width - min_x));
-        let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
+    fn spawn_pegs(rng: &mut RandomNumberGenerator) -> Pegs<MAX_PEGS> {
+        let peg_count = 50;
+        let screen_width = 140;
+        let screen_height = 120;
+        let min_x = 20;
+        let min_y = 30;
 
-        let force_radius_index =
-            (rng.next_i32().abs() % peg::FORCE_RADII.len() as i32) as usize;
-        let force_radius =
-            Fixed::new(peg::FORCE_RADII[force_radius_index] as i32);
+        let mut positions = [vec2(num!(0), num!(0)); MAX_PEGS];
+        let mut force_radius_squared = [num!(20); MAX_PEGS];
+        let mut showable = [false; MAX_PEGS];
+        let mut collidable = [false; MAX_PEGS];
+        let mut kind = [Kind::Blue; MAX_PEGS];
 
-        positions[i] = vec2(Fixed::new(x), Fixed::new(y));
-        force_radius_squared[i] = force_radius * force_radius;
-        showable[i] = true;
-        collidable[i] = true;
+        for i in 0..peg_count {
+            let x = min_x + (rng.next_i32().abs() % (screen_width - min_x));
+            let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
 
-        kind[i] = if rng.next_i32() > 0 {
-            Kind::Blue
+            let force_radius_index =
+                (rng.next_i32().abs() % peg::FORCE_RADII.len() as i32) as usize;
+            let force_radius =
+                Fixed::new(peg::FORCE_RADII[force_radius_index] as i32);
+
+            positions[i] = vec2(Fixed::new(x), Fixed::new(y));
+            force_radius_squared[i] = force_radius * force_radius;
+            showable[i] = true;
+            collidable[i] = true;
+
+            kind[i] = if rng.next_i32() > 0 {
+                Kind::Blue
+            } else {
+                Kind::Red
+            }
+        }
+
+        Pegs::new(positions, force_radius_squared, showable, collidable, kind)
+    }
+
+    pub fn pop_ball(&mut self) -> Result<(), Error> {
+        if let Some(ball_data) = self.ball_data.pop() {
+            self.current_ball_data = Some(ball_data);
+            Ok(())
         } else {
-            Kind::Red
+            Err(Error::NoBalls)
         }
     }
 
-    Pegs::new(positions, force_radius_squared, showable, collidable, kind)
-}
-
-fn update_aiming(
-    input: &mut ButtonController,
-    game_state: &mut GameState,
-    ball: &mut Ball,
-    direction_viewer: &mut DirectionViewer,
-) -> Result<State, Error> {
-    ball.reset_sprite();
-
-    let delta_time = num!(DELTA_TIME);
-
-    let left_currently_pressed = input.is_pressed(Button::LEFT);
-    let right_currently_pressed = input.is_pressed(Button::RIGHT);
-
-    if left_currently_pressed && !right_currently_pressed {
-        game_state.horizontal_velocity = (game_state.horizontal_velocity
-            - num!(VELOCITY_CHANGE_RATE) * delta_time)
-            .max(num!(-MAX_HORIZONTAL_VELOCITY));
-    } else if right_currently_pressed && !left_currently_pressed {
-        game_state.horizontal_velocity = (game_state.horizontal_velocity
-            + num!(VELOCITY_CHANGE_RATE) * delta_time)
-            .min(num!(MAX_HORIZONTAL_VELOCITY));
-    }
-
-    game_state.left_pressed = left_currently_pressed;
-    game_state.right_pressed = right_currently_pressed;
-
-    direction_viewer.update_direction(game_state.horizontal_velocity);
-
-    if input.is_just_pressed(Button::A) {
-        ball.velocity =
-            vec2(game_state.horizontal_velocity, num!(BALL_START_Y));
-        return Ok(State::Falling);
-    }
-
-    Ok(State::Aiming)
-}
-
-fn update_falling(
-    ball: &mut Ball,
-    pegs: &mut Pegs<MAX_PEGS>,
-    physics: &mut Physics<MAX_PEGS>,
-    score: &mut Score,
-    bucket: &Bucket,
-    active_ball_effect: BallEffect,
-    passive_ball_effects: &[BallData],
-) -> Result<State, Error> {
-    ball.update();
-
-    crate::bench::start("UPDATE_BALL_TOP");
-    let (position, velocity, touched) = physics
-        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, 0, 0, 160, 180>(
-            ball.position,
-            ball.velocity,
-            &pegs.positions,
-            &pegs.collidable,
-            num!(DELTA_TIME),
-            &bucket.walls,
-        )?;
-    ball.position = position;
-    ball.velocity = velocity;
-    crate::bench::stop("UPDATE_BALL_TOP");
-
-    for &i in touched {
-        pegs.collidable[i] = false;
-
-        let (mut base, mut mult) = match pegs.kind[i] {
-            Kind::Blue => (1, 0),
-            Kind::Red => (0, 1),
-        };
-
-        for pe in passive_ball_effects {
-            (base, mult) = pe.passive().apply(base, mult);
-        }
-
-        (base, mult) = active_ball_effect.apply(base, mult);
-
-        score.base += base;
-        score.mult += mult;
-
-        agb::println!("Added: ({}, {})", base, mult);
-    }
-
-    if ball.position.y > num!(SCREEN_BOTTOM) {
-        return Ok(State::Counting { is_bucketed: false });
-    }
-
-    if bucket.is_in_bucket(ball.position) {
-        return Ok(State::Counting { is_bucketed: true });
-    }
-
-    Ok(State::Falling)
-}
-
-fn update_counting(
-    ball: &mut Ball,
-    pegs: &mut Pegs<MAX_PEGS>,
-    score: &mut Score,
-    is_bucketed: bool,
-    bucket_effects: &[BucketEffect],
-) -> Result<State, Error> {
-    ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
-
-    for i in 0..MAX_PEGS {
-        if !pegs.collidable[i] {
-            pegs.showable[i] = false;
-        }
-    }
-
-    if is_bucketed {
-        agb::println!("Bucket!");
-        for e in bucket_effects {
-            e.apply(score);
-        }
-    }
-
-    score.commit();
-
-    Ok(State::Aiming)
-}
-
-fn is_winning(score: &Score) -> bool {
-    score.total() > TARGET_SCORE
-}
-
-pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
-    let mut state = State::Aiming;
-    let mut game_state = GameState {
-        horizontal_velocity: num!(BALL_START_Y),
-        left_pressed: false,
-        right_pressed: false,
-    };
-
-    let mut gfx = gba.graphics.get();
-    let mut input = ButtonController::new();
-    let mut timers = gba.timers.timers();
-
-    let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
-    let mut direction_viewer =
-        DirectionViewer::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
-    let mut bucket =
-        Bucket::new(vec2(num!(BUCKET_START_X), num!(BUCKET_START_Y)));
-    let mut rng = RandomNumberGenerator::new();
-    let mut pegs = spawn_pegs(&mut rng);
-    let mut physics =
-        Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
-    let mut score = Score::new();
-    let mut ball_effects = vec![BallData::empty()];
-    let bucket_effects = vec![BucketEffect::Identity];
-
-    let mut current_ball = if let Some(ball) = ball_effects.pop() {
-        ball
-    } else {
-        return Err(Error::NoBallsAtBeginningOfLevel);
-    };
-
-    crate::bench::init(&mut timers);
-
-    loop {
+    pub fn update(
+        &mut self,
+        input: &mut ButtonController,
+    ) -> Result<Scene, Error> {
         input.update();
 
         crate::bench::start("PEG_UPDATE");
-        physics.move_from_fields::<3000, 10, 10, 10, 150, 110, 10>(
-            &mut pegs.positions,
-            &mut pegs.velocities,
-            &pegs.collidable,
-            &pegs.force_radius_squared,
-            num!(DELTA_TIME),
-        )?;
+        self.physics
+            .move_from_fields::<3000, 10, 10, 10, 150, 110, 15>(
+                &mut self.pegs.positions,
+                &mut self.pegs.velocities,
+                &self.pegs.collidable,
+                &self.pegs.force_radius_squared,
+                num!(DELTA_TIME),
+            )?;
+
         crate::bench::stop("PEG_UPDATE");
 
-        bucket.update();
+        self.bucket.update();
 
-        state = match state {
-            State::Aiming => update_aiming(
-                &mut input,
-                &mut game_state,
-                &mut ball,
-                &mut direction_viewer,
-            )?,
-            State::Falling => update_falling(
-                &mut ball,
-                &mut pegs,
-                &mut physics,
-                &mut score,
-                &bucket,
-                current_ball.active(),
-                &ball_effects,
-            )?,
+        self.state = match self.state {
+            State::Aiming => self.update_aiming(input)?,
+            State::Falling => self.update_falling()?,
             State::Counting { is_bucketed } => {
                 crate::bench::log();
-                let res = update_counting(
-                    &mut ball,
-                    &mut pegs,
-                    &mut score,
-                    is_bucketed,
-                    &bucket_effects,
-                )?;
+                let res = self.update_counting(is_bucketed)?;
 
-                if is_winning(&score) {
+                if self.is_winning() {
                     return Ok(Scene::Win);
                 }
 
-                current_ball = if let Some(ball) = ball_effects.pop() {
-                    ball
-                } else {
-                    return Ok(Scene::GameOver);
-                };
+                match self.pop_ball() {
+                    Ok(_) => {}
+                    Err(Error::NoBalls) => {
+                        return Ok(Scene::GameOver);
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
 
                 res
             }
         };
 
+        Ok(Scene::Game)
+    }
+
+    pub fn show(&mut self, frame: &mut GraphicsFrame) {
+        self.pegs.show(frame);
+        self.ball.show(frame);
+        self.bucket.show(frame);
+        if matches!(self.state, State::Aiming) {
+            self.direction_viewer.show(frame);
+        }
+    }
+
+    fn update_aiming(
+        &mut self,
+        input: &ButtonController,
+    ) -> Result<State, Error> {
+        self.ball.reset_sprite();
+
+        let delta_time = num!(DELTA_TIME);
+
+        let left_currently_pressed = input.is_pressed(Button::LEFT);
+        let right_currently_pressed = input.is_pressed(Button::RIGHT);
+
+        if left_currently_pressed && !right_currently_pressed {
+            self.horizontal_velocity = (self.horizontal_velocity
+                - num!(VELOCITY_CHANGE_RATE) * delta_time)
+                .max(num!(-MAX_HORIZONTAL_VELOCITY));
+        } else if right_currently_pressed && !left_currently_pressed {
+            self.horizontal_velocity = (self.horizontal_velocity
+                + num!(VELOCITY_CHANGE_RATE) * delta_time)
+                .min(num!(MAX_HORIZONTAL_VELOCITY));
+        }
+
+        self.direction_viewer
+            .update_direction(self.horizontal_velocity);
+
+        if input.is_just_pressed(Button::A) {
+            self.ball.velocity =
+                vec2(self.horizontal_velocity, num!(BALL_START_Y));
+            return Ok(State::Falling);
+        }
+
+        Ok(State::Aiming)
+    }
+
+    fn update_falling(&mut self) -> Result<State, Error> {
+        self.ball.update();
+
+        crate::bench::start("UPDATE_BALL_TOP");
+        let (position, velocity, touched) = self.physics
+        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, 0, 0, 160, 180>(
+            self.ball.position,
+            self.ball.velocity,
+            &self.pegs.positions,
+            &self.pegs.collidable,
+            num!(DELTA_TIME),
+            &self.bucket.walls,
+        )?;
+        self.ball.position = position;
+        self.ball.velocity = velocity;
+        crate::bench::stop("UPDATE_BALL_TOP");
+
+        for &i in touched {
+            self.pegs.collidable[i] = false;
+
+            let (mut base, mut mult) = match self.pegs.kind[i] {
+                Kind::Blue => (1, 0),
+                Kind::Red => (0, 1),
+            };
+
+            for pe in &self.ball_data {
+                (base, mult) = pe.passive().apply(base, mult);
+            }
+
+            if let Some(ball_data) = &self.current_ball_data {
+                (base, mult) = ball_data.active().apply(base, mult);
+            }
+
+            self.score.base += base;
+            self.score.mult += mult;
+
+            agb::println!("Added: ({}, {})", base, mult);
+        }
+
+        if self.ball.position.y > num!(SCREEN_BOTTOM) {
+            return Ok(State::Counting { is_bucketed: false });
+        }
+
+        if self.bucket.is_in_bucket(self.ball.position) {
+            return Ok(State::Counting { is_bucketed: true });
+        }
+
+        Ok(State::Falling)
+    }
+
+    fn update_counting(&mut self, is_bucketed: bool) -> Result<State, Error> {
+        self.ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
+
+        for i in 0..MAX_PEGS {
+            if !self.pegs.collidable[i] {
+                self.pegs.showable[i] = false;
+            }
+        }
+
+        if is_bucketed {
+            agb::println!("Bucket!");
+            for e in &self.bucket_effects {
+                e.apply(&mut self.score);
+            }
+        }
+
+        self.score.commit();
+
+        Ok(State::Aiming)
+    }
+
+    pub fn is_winning(&self) -> bool {
+        self.score.total() > TARGET_SCORE
+    }
+}
+
+pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
+    let mut gfx = gba.graphics.get();
+    let mut input = ButtonController::new();
+    let mut timers = gba.timers.timers();
+
+    let mut game_state = GameState::<50>::new()?;
+    game_state.pop_ball()?;
+
+    crate::bench::init(&mut timers);
+
+    loop {
+        match game_state.update(&mut input) {
+            Ok(Scene::Game) => {}
+            res => return res,
+        }
+
         let mut frame = gfx.frame();
 
-        pegs.show(&mut frame);
-        ball.show(&mut frame);
-        bucket.show(&mut frame);
-
-        if matches!(state, State::Aiming) {
-            direction_viewer.show(&mut frame);
-        }
+        game_state.show(&mut frame);
 
         frame.commit();
     }

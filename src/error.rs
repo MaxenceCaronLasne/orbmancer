@@ -4,5 +4,5 @@ pub enum Error {
     IndexTooBig,
     CellFull,
     NeighborNotFound,
-    NoBallsAtBeginningOfLevel,
+    NoBalls,
 }
