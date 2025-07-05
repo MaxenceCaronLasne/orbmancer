@@ -4,6 +4,8 @@ pub mod game;
 
 pub enum Scene {
     Game,
+    GameOver,
+    Win,
 }
 
 pub fn main(mut gba: agb::Gba) -> Result<(), Error> {
@@ -12,6 +14,18 @@ pub fn main(mut gba: agb::Gba) -> Result<(), Error> {
     loop {
         state = match state {
             Scene::Game => game::main(&mut gba)?,
+            Scene::GameOver => {
+                agb::println!("Game Over!");
+                loop {
+                    agb::halt();
+                }
+            }
+            Scene::Win => {
+                agb::println!("You Win!");
+                loop {
+                    agb::halt();
+                }
+            }
         };
     }
 }

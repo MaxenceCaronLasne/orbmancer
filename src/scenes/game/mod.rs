@@ -10,7 +10,7 @@ use agb::rng::RandomNumberGenerator;
 use alloc::vec;
 use ball::Ball;
 use direction_viewer::DirectionViewer;
-use effect::{BallEffect, BucketEffect};
+use effect::{BallData, BallEffect, BucketEffect};
 use peg::{Kind, Pegs};
 
 pub mod ball;
@@ -29,6 +29,7 @@ const BUCKET_START_X: f32 = 80.0;
 const BUCKET_START_Y: f32 = 140.0;
 const SCREEN_BOTTOM: f32 = 168.0;
 const MAX_PEGS: usize = 50;
+const TARGET_SCORE: i32 = 1000;
 
 enum State {
     Aiming,
@@ -122,7 +123,8 @@ fn update_falling(
     physics: &mut Physics<MAX_PEGS>,
     score: &mut Score,
     bucket: &Bucket,
-    ball_effects: &[BallEffect],
+    active_ball_effect: BallEffect,
+    passive_ball_effects: &[BallData],
 ) -> Result<State, Error> {
     ball.update();
 
@@ -148,9 +150,11 @@ fn update_falling(
             Kind::Red => (0, 1),
         };
 
-        for e in ball_effects {
-            (base, mult) = e.apply(base, mult);
+        for pe in passive_ball_effects {
+            (base, mult) = pe.passive().apply(base, mult);
         }
+
+        (base, mult) = active_ball_effect.apply(base, mult);
 
         score.base += base;
         score.mult += mult;
@@ -196,6 +200,10 @@ fn update_counting(
     Ok(State::Aiming)
 }
 
+fn is_winning(score: &Score) -> bool {
+    score.total() > TARGET_SCORE
+}
+
 pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut state = State::Aiming;
     let mut game_state = GameState {
@@ -217,8 +225,14 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut physics =
         Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
     let mut score = Score::new();
-    let ball_effects = vec![BallEffect::Identity, BallEffect::AddMult(3)];
+    let mut ball_effects = vec![BallData::empty()];
     let bucket_effects = vec![BucketEffect::Identity];
+
+    let mut current_ball = if let Some(ball) = ball_effects.pop() {
+        ball
+    } else {
+        return Err(Error::NoBallsAtBeginningOfLevel);
+    };
 
     crate::bench::init(&mut timers);
 
@@ -238,26 +252,42 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         bucket.update();
 
         state = match state {
-            State::Aiming => {
-                update_aiming(&mut input, &mut game_state, &mut ball, &mut direction_viewer)?
-            }
+            State::Aiming => update_aiming(
+                &mut input,
+                &mut game_state,
+                &mut ball,
+                &mut direction_viewer,
+            )?,
             State::Falling => update_falling(
                 &mut ball,
                 &mut pegs,
                 &mut physics,
                 &mut score,
                 &bucket,
+                current_ball.active(),
                 &ball_effects,
             )?,
             State::Counting { bucketed } => {
                 crate::bench::log();
-                update_counting(
+                let res = update_counting(
                     &mut ball,
                     &mut pegs,
                     &mut score,
                     bucketed,
                     &bucket_effects,
-                )?
+                )?;
+
+                if is_winning(&score) {
+                    return Ok(Scene::Win);
+                }
+
+                current_ball = if let Some(ball) = ball_effects.pop() {
+                    ball
+                } else {
+                    return Ok(Scene::GameOver);
+                };
+
+                res
             }
         };
 
@@ -266,7 +296,7 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
         pegs.show(&mut frame);
         ball.show(&mut frame);
         bucket.show(&mut frame);
-        
+
         if matches!(state, State::Aiming) {
             direction_viewer.show(&mut frame);
         }

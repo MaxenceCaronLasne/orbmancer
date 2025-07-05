@@ -1,6 +1,33 @@
 use super::score::Score;
 
 #[derive(Clone, Copy, Debug)]
+pub struct BallData {
+    active: BallEffect,
+    passive: BallEffect,
+}
+
+impl BallData {
+    pub fn empty() -> Self {
+        Self {
+            active: BallEffect::Identity,
+            passive: BallEffect::Identity,
+        }
+    }
+
+    pub fn new(active: BallEffect, passive: BallEffect) -> Self {
+        Self { active, passive }
+    }
+
+    pub fn active(&self) -> BallEffect {
+        self.active
+    }
+
+    pub fn passive(&self) -> BallEffect {
+        self.passive
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum BallEffect {
     Identity,
     AddMult(i32),

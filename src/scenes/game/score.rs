@@ -26,4 +26,8 @@ impl Score {
         self.base = 0;
         self.mult = 1;
     }
+
+    pub fn total(&self) -> i32 {
+        self.total
+    }
 }
