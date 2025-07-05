@@ -1,0 +1,5 @@
+# Tools configuration - build for host platform, not GBA
+# This overrides the parent .cargo/config.toml for the tools directory
+
+[build]
+target = "aarch64-apple-darwin"

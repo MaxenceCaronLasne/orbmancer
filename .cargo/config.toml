@@ -19,6 +19,9 @@ rustdocflags = [
 
 runner = ["sh", "-c", "if [ $(uname) = 'Darwin' ]; then exec mGBA -C logToStdout=1 -C logLevel.gba.debug=127 \"$@\"; else exec mgba-qt -C logToStdout=1 -C logLevel.gba.debug=127 \"$@\"; fi", "--"]
 
+[alias]
+debug = "run --manifest-path tools/Cargo.toml --target aarch64-apple-darwin"
+
 # [target.armv4t-none-eabi]
 # rustflags = [
 #     "-Clink-arg=-Tgba.ld",
