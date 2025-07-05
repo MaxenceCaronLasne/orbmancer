@@ -34,7 +34,7 @@ const TARGET_SCORE: i32 = 1000;
 enum State {
     Aiming,
     Falling,
-    Counting { bucketed: bool },
+    Counting { is_bucketed: bool },
 }
 
 struct GameState {
@@ -163,11 +163,11 @@ fn update_falling(
     }
 
     if ball.position.y > num!(SCREEN_BOTTOM) {
-        return Ok(State::Counting { bucketed: false });
+        return Ok(State::Counting { is_bucketed: false });
     }
 
     if bucket.is_in_bucket(ball.position) {
-        return Ok(State::Counting { bucketed: true });
+        return Ok(State::Counting { is_bucketed: true });
     }
 
     Ok(State::Falling)
@@ -217,7 +217,8 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
     let mut timers = gba.timers.timers();
 
     let mut ball = Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
-    let mut direction_viewer = DirectionViewer::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
+    let mut direction_viewer =
+        DirectionViewer::new(vec2(num!(BALL_START_X), num!(BALL_START_Y)));
     let mut bucket =
         Bucket::new(vec2(num!(BUCKET_START_X), num!(BUCKET_START_Y)));
     let mut rng = RandomNumberGenerator::new();
@@ -267,13 +268,13 @@ pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
                 current_ball.active(),
                 &ball_effects,
             )?,
-            State::Counting { bucketed } => {
+            State::Counting { is_bucketed } => {
                 crate::bench::log();
                 let res = update_counting(
                     &mut ball,
                     &mut pegs,
                     &mut score,
-                    bucketed,
+                    is_bucketed,
                     &bucket_effects,
                 )?;
 
