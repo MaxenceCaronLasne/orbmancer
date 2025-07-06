@@ -1,45 +1,81 @@
-use super::score::Score;
+use crate::save::BallKind;
+use alloc::vec::Vec;
+use heapless::Vec as HeaplessVec;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BallData {
-    active: BallEffect,
-    passive: BallEffect,
+    active: ActiveEffect,
+    passive: PassiveEffect,
 }
 
 impl BallData {
     pub fn empty() -> Self {
         Self {
-            active: BallEffect::Identity,
-            passive: BallEffect::Identity,
+            active: ActiveEffect::Identity,
+            passive: PassiveEffect::Identity,
         }
     }
 
-    pub fn new(active: BallEffect, passive: BallEffect) -> Self {
+    pub fn new(active: ActiveEffect, passive: PassiveEffect) -> Self {
         Self { active, passive }
     }
 
-    pub fn active(&self) -> BallEffect {
+    pub fn from_kind(kind: BallKind) -> Self {
+        match kind {
+            BallKind::Identity => Self {
+                active: ActiveEffect::Identity,
+                passive: PassiveEffect::Identity,
+            },
+            BallKind::TheDoubler => Self {
+                active: ActiveEffect::AddMult(1),
+                passive: PassiveEffect::Identity,
+            },
+        }
+    }
+
+    pub fn active(&self) -> ActiveEffect {
         self.active
     }
 
-    pub fn passive(&self) -> BallEffect {
+    pub fn passive(&self) -> PassiveEffect {
         self.passive
     }
 }
 
+pub fn from_kinds(kinds: &HeaplessVec<BallKind, 16>) -> Vec<BallData> {
+    kinds.iter().map(|kind| BallData::from_kind(*kind)).collect()
+}
+
 #[derive(Clone, Copy, Debug)]
-pub enum BallEffect {
+pub enum PassiveEffect {
     Identity,
     AddMult(i32),
     AddBase(i32),
 }
 
-impl BallEffect {
+impl PassiveEffect {
     pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
         match self {
-            BallEffect::Identity => (base, mult),
-            BallEffect::AddMult(m) => (base, mult + m),
-            BallEffect::AddBase(b) => (base + b, mult),
+            PassiveEffect::Identity => (base, mult),
+            PassiveEffect::AddMult(m) => (base, mult + m),
+            PassiveEffect::AddBase(b) => (base + b, mult),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ActiveEffect {
+    Identity,
+    AddMult(i32),
+    AddBase(i32),
+}
+
+impl ActiveEffect {
+    pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
+        match self {
+            ActiveEffect::Identity => (base, mult),
+            ActiveEffect::AddMult(m) => (base, mult + m),
+            ActiveEffect::AddBase(b) => (base + b, mult),
         }
     }
 }
@@ -51,10 +87,10 @@ pub enum BucketEffect {
 }
 
 impl BucketEffect {
-    pub fn apply(self, score: &mut Score) {
+    pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
         match self {
-            BucketEffect::Identity => (),
-            BucketEffect::MultiplyMult(m) => score.mult *= m,
+            BucketEffect::Identity => (base, mult),
+            BucketEffect::MultiplyMult(m) => (base, mult * m),
         }
     }
 }

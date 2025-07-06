@@ -12,6 +12,7 @@ extern crate alloc;
 mod bench;
 mod error;
 mod physics;
+mod save;
 mod scenes;
 
 #[cfg(test)]
@@ -24,7 +25,13 @@ pub type Force = Vector2D<Fixed>;
 #[cfg(not(test))]
 #[agb::entry]
 fn entry(gba: agb::Gba) -> ! {
-    match scenes::main(gba) {
+    agb::println!("Starting game...");
+    let mut save = save::Save::new();
+    let _ = save.push_ball(save::BallKind::Identity);
+    let _ = save.push_ball(save::BallKind::Identity);
+    let _ = save.push_ball(save::BallKind::TheDoubler);
+
+    match scenes::main(gba, save) {
         Ok(()) => {
             agb::println!("Quitting...");
         }

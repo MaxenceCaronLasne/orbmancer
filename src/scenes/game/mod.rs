@@ -1,6 +1,7 @@
 use crate::Fixed;
 use crate::error::Error;
 use crate::physics::Physics;
+use crate::save::Save;
 use crate::scenes::Scene;
 use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
@@ -22,7 +23,7 @@ pub mod effect;
 pub mod peg;
 pub mod score;
 
-const MAX_HORIZONTAL_VELOCITY: f32 = 100.0;
+const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const DELTA_TIME: f32 = 1.0 / 60.0;
 const BALL_START_X: f32 = 21.0;
@@ -40,11 +41,11 @@ enum State {
 
 struct GameState<const MAX_PEGS: usize> {
     ball: Ball,
-    ball_data: Vec<BallData>,
+    inventory: Vec<BallData>,
     bucket: Bucket,
     bucket_effects: Vec<BucketEffect>,
     current_ball_data: Option<BallData>,
-    horizontal_velocity: Fixed,
+    input_velocity: Fixed,
     pegs: Pegs<MAX_PEGS>,
     physics: Physics<MAX_PEGS>,
     score: Score,
@@ -53,7 +54,7 @@ struct GameState<const MAX_PEGS: usize> {
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new(save: &Save) -> Result<Self, Error> {
         let rng = &mut RandomNumberGenerator::new();
         let pegs = Self::spawn_pegs(rng);
         let physics =
@@ -61,11 +62,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         Ok(Self {
             ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
-            ball_data: vec![
-                BallData::empty(),
-                BallData::empty(),
-                BallData::empty(),
-            ],
+            inventory: effect::from_kinds(&save.inventory),
             bucket: Bucket::new(vec2(
                 num!(BUCKET_START_X),
                 num!(BUCKET_START_Y),
@@ -76,7 +73,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 num!(BALL_START_X),
                 num!(BALL_START_Y),
             )),
-            horizontal_velocity: num!(BALL_START_Y),
+            input_velocity: num!(BALL_START_Y),
             pegs,
             physics,
             score: Score::new(),
@@ -122,7 +119,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     }
 
     pub fn pop_ball(&mut self) -> Result<(), Error> {
-        if let Some(ball_data) = self.ball_data.pop() {
+        if let Some(ball_data) = self.inventory.pop() {
             self.current_ball_data = Some(ball_data);
             Ok(())
         } else {
@@ -145,7 +142,6 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 &self.pegs.force_radius_squared,
                 num!(DELTA_TIME),
             )?;
-
         crate::bench::stop("PEG_UPDATE");
 
         self.bucket.update();
@@ -182,9 +178,24 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.pegs.show(frame);
         self.ball.show(frame);
         self.bucket.show(frame);
+
         if matches!(self.state, State::Aiming) {
             self.direction_viewer.show(frame);
         }
+    }
+
+    fn update_input_velocity_to_left(&mut self, delta: Fixed) {
+        self.input_velocity -= num!(VELOCITY_CHANGE_RATE) * delta;
+        self.input_velocity = self
+            .input_velocity
+            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
+    }
+
+    fn update_input_velocity_to_right(&mut self, delta: Fixed) {
+        self.input_velocity += num!(VELOCITY_CHANGE_RATE) * delta;
+        self.input_velocity = self
+            .input_velocity
+            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
     }
 
     fn update_aiming(
@@ -193,27 +204,21 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     ) -> Result<State, Error> {
         self.ball.reset_sprite();
 
-        let delta_time = num!(DELTA_TIME);
+        let delta = num!(DELTA_TIME);
 
-        let left_currently_pressed = input.is_pressed(Button::LEFT);
-        let right_currently_pressed = input.is_pressed(Button::RIGHT);
+        let is_left_pressed = input.is_pressed(Button::LEFT);
+        let is_right_pressed = input.is_pressed(Button::RIGHT);
 
-        if left_currently_pressed && !right_currently_pressed {
-            self.horizontal_velocity = (self.horizontal_velocity
-                - num!(VELOCITY_CHANGE_RATE) * delta_time)
-                .max(num!(-MAX_HORIZONTAL_VELOCITY));
-        } else if right_currently_pressed && !left_currently_pressed {
-            self.horizontal_velocity = (self.horizontal_velocity
-                + num!(VELOCITY_CHANGE_RATE) * delta_time)
-                .min(num!(MAX_HORIZONTAL_VELOCITY));
+        if is_left_pressed && !is_right_pressed {
+            self.update_input_velocity_to_left(delta);
+        } else if is_right_pressed && !is_left_pressed {
+            self.update_input_velocity_to_right(delta);
         }
 
-        self.direction_viewer
-            .update_direction(self.horizontal_velocity);
+        self.direction_viewer.update_direction(self.input_velocity);
 
         if input.is_just_pressed(Button::A) {
-            self.ball.velocity =
-                vec2(self.horizontal_velocity, num!(BALL_START_Y));
+            self.ball.velocity = vec2(self.input_velocity, num!(BALL_START_Y));
             return Ok(State::Falling);
         }
 
@@ -245,7 +250,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 Kind::Red => (0, 1),
             };
 
-            for pe in &self.ball_data {
+            for pe in &self.inventory {
                 (base, mult) = pe.passive().apply(base, mult);
             }
 
@@ -282,7 +287,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         if is_bucketed {
             agb::println!("Bucket!");
             for e in &self.bucket_effects {
-                e.apply(&mut self.score);
+                let (base, mult) = e.apply(self.score.base, self.score.mult);
+
+                self.score.base = base;
+                self.score.mult = mult;
             }
         }
 
@@ -296,12 +304,12 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     }
 }
 
-pub fn main(gba: &mut agb::Gba) -> Result<Scene, Error> {
+pub fn main(gba: &mut agb::Gba, save: &mut Save) -> Result<Scene, Error> {
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
     let mut timers = gba.timers.timers();
 
-    let mut game_state = GameState::<50>::new()?;
+    let mut game_state = GameState::<50>::new(save)?;
     game_state.pop_ball()?;
 
     crate::bench::init(&mut timers);
