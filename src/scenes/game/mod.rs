@@ -23,6 +23,10 @@ pub mod effect;
 pub mod peg;
 pub mod score;
 
+#[cfg(test)]
+mod test;
+
+
 const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const DELTA_TIME: f32 = 1.0 / 60.0;

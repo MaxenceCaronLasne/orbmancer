@@ -1,0 +1,14 @@
+# Configure rust-analyzer to not assume test cfg by default
+checkOnSave = true
+
+[cargo]
+allFeatures = false
+features = []
+
+[check]
+allTargets = false
+command = "clippy"
+
+# Don't check test code by default during normal editing
+[procMacro]
+enable = true

@@ -15,9 +15,6 @@ mod physics;
 mod save;
 mod scenes;
 
-#[cfg(test)]
-mod test_scenes;
-
 pub type Fixed = FixedNum<8>;
 pub type Coordinates = Vector2D<Fixed>;
 pub type Force = Vector2D<Fixed>;
@@ -68,32 +65,72 @@ mod tests {
     }
 
     #[test_case]
-    fn test_physics_sparse_pegs(gba: &mut Gba) {
-        use crate::test_scenes::{PhysicsTest, run_test_scene};
-
-        agb::println!("Running physics test: sparse pegs");
-        agb::println!("Controls: L/R/SELECT = switch test, START = finish");
-
-        match run_test_scene::<PhysicsTest>(gba, 3600) {
-            // 60 seconds max
-            Ok(result) => agb::println!("Test result: {:?}", result),
-            Err(e) => agb::println!("Test error: {:?}", e),
-        }
+    fn test_frame_commit(gba: &mut Gba) {
+        let mut gfx = gba.graphics.get();
+        let mut frame = gfx.frame();
+        frame.commit();
     }
 
     #[test_case]
-    fn test_physics_all_scenarios(gba: &mut Gba) {
-        agb::println!("Running comprehensive physics test");
-        agb::println!(
-            "Controls: L=sparse pegs, R=dense cluster, SELECT=wall bounce, START=finish"
-        );
+    fn test_physics_constants(_gba: &mut Gba) {
+        use crate::scenes::game::ball::RADIUS as BALL_RADIUS;
+        use crate::scenes::game::peg::RADIUS as PEG_RADIUS;
 
-        match crate::test_scenes::run_test_scene::<
-            crate::test_scenes::PhysicsTest,
-        >(gba, 3600)
-        {
-            Ok(result) => agb::println!("Test result: {:?}", result),
-            Err(e) => agb::println!("Test error: {:?}", e),
-        }
+        agb::println!("Testing physics constants");
+
+        // Test that physics constants are reasonable
+        assert!(PEG_RADIUS > 0);
+        assert!(BALL_RADIUS > 0);
+        assert!(PEG_RADIUS < 20); // Reasonable size for GBA screen
+        assert!(BALL_RADIUS < 20); // Reasonable size for GBA screen
+
+        agb::println!(
+            "Peg radius: {}, Ball radius: {}",
+            PEG_RADIUS,
+            BALL_RADIUS
+        );
+        agb::println!("Physics constants: OK");
+    }
+
+    #[test_case]
+    fn test_coordinates_math(_gba: &mut Gba) {
+        use crate::{Coordinates, Fixed};
+        use agb::fixnum::vec2;
+
+        agb::println!("Testing coordinate math");
+
+        let pos1: Coordinates = vec2(Fixed::new(10), Fixed::new(20));
+        let pos2: Coordinates = vec2(Fixed::new(5), Fixed::new(15));
+        let result = pos1 + pos2;
+
+        agb::println!("Position 1: {:?}", pos1);
+        agb::println!("Position 2: {:?}", pos2);
+        agb::println!("Sum: {:?}", result);
+
+        // Test that coordinate math works correctly
+        assert_eq!(result.x, Fixed::new(15));
+        assert_eq!(result.y, Fixed::new(35));
+
+        agb::println!("Coordinate math: OK");
+    }
+
+    #[test_case]
+    fn test_save_system(_gba: &mut Gba) {
+        use crate::save::{BallKind, Save};
+
+        agb::println!("Testing save system");
+
+        let mut save = Save::new();
+        assert!(save.is_empty());
+
+        let result = save.push_ball(BallKind::Identity);
+        assert!(result.is_ok());
+        assert_eq!(save.len(), 1);
+
+        let result = save.push_ball(BallKind::TheDoubler);
+        assert!(result.is_ok());
+        assert_eq!(save.len(), 2);
+
+        agb::println!("Save system: OK - {} balls stored", save.len());
     }
 }
