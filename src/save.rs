@@ -1,3 +1,4 @@
+use crate::error::Error;
 use heapless::Vec;
 
 #[derive(Clone, Copy, Debug)]
@@ -7,7 +8,7 @@ pub enum BallKind {
 }
 
 pub struct Save {
-    pub inventory: Vec<BallKind, 16>, // Max 16 balls in inventory
+    inventory: Vec<BallKind, 16>, // Max 16 balls in inventory
 }
 
 impl Save {
@@ -16,16 +17,13 @@ impl Save {
             inventory: Vec::new(),
         }
     }
-    
-    pub fn push_ball(&mut self, kind: BallKind) -> Result<(), ()> {
-        self.inventory.push(kind).map_err(|_| ())
+
+    pub fn push_ball(&mut self, kind: BallKind) -> Result<(), Error> {
+        self.inventory.push(kind).map_err(|_| Error::InventoryFull)
     }
-    
-    pub fn len(&self) -> usize {
-        self.inventory.len()
-    }
-    
-    pub fn is_empty(&self) -> bool {
-        self.inventory.is_empty()
+
+    pub fn inventory(&self) -> &Vec<BallKind, 16> {
+        &self.inventory
     }
 }
+

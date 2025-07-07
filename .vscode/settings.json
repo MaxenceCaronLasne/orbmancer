@@ -1,0 +1,16 @@
+{
+    "rust-analyzer.checkOnSave.allTargets": false,
+    "rust-analyzer.cargo.allFeatures": false,
+    "rust-analyzer.cargo.target": "thumbv4t-none-eabi",
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "clippy",
+        "--target",
+        "thumbv4t-none-eabi",
+        "--message-format=json"
+    ],
+    "rust-analyzer.cfg.test": false,
+    "rust-analyzer.diagnostics.disabled": [
+        "unresolved-proc-macro"
+    ]
+}

@@ -1,6 +1,11 @@
 // This module is only compiled during tests
 // rust-analyzer should respect this and not show errors during normal editing
 
+#![cfg(test)]
+// Disable clippy warnings for test-only code
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use crate::physics::Physics;
 use crate::scenes::game::peg::{Kind, FORCE_RADII};
 use crate::Fixed;

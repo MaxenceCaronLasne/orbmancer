@@ -4,11 +4,26 @@ checkOnSave = true
 [cargo]
 allFeatures = false
 features = []
+# Don't build test targets during normal analysis
+target = "thumbv4t-none-eabi"
 
 [check]
 allTargets = false
 command = "clippy"
+# Override command to explicitly exclude test targets
+overrideCommand = ["cargo", "clippy", "--target", "thumbv4t-none-eabi", "--message-format=json"]
 
-# Don't check test code by default during normal editing
 [procMacro]
 enable = true
+
+[diagnostics]
+# Disable some noisy diagnostics
+disabled = ["unresolved-proc-macro"]
+
+# Explicitly set cfg to not include test
+[rustcSource]
+discoveryCommand = ["rustc", "--print", "sysroot"]
+
+# This is the key setting - explicitly disable test cfg
+[cfg]
+test = false

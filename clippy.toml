@@ -1,0 +1,7 @@
+# Clippy configuration
+# Don't warn about dead code in modules that are cfg(test)
+avoid-breaking-exported-api = false
+cognitive-complexity-threshold = 30
+
+# Disable warnings that are noisy during development
+disallowed-names = []

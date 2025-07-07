@@ -26,7 +26,6 @@ pub mod score;
 #[cfg(test)]
 mod test;
 
-
 const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const DELTA_TIME: f32 = 1.0 / 60.0;
@@ -66,7 +65,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         Ok(Self {
             ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
-            inventory: effect::from_kinds(&save.inventory),
+            inventory: effect::from_kinds(save.inventory()),
             bucket: Bucket::new(vec2(
                 num!(BUCKET_START_X),
                 num!(BUCKET_START_Y),
