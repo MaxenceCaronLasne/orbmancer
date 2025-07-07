@@ -9,6 +9,7 @@ pub struct BallData {
 }
 
 impl BallData {
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             active: ActiveEffect::Identity,
@@ -16,6 +17,7 @@ impl BallData {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new(active: ActiveEffect, passive: PassiveEffect) -> Self {
         Self { active, passive }
     }
@@ -49,7 +51,9 @@ pub fn from_kinds(kinds: &HeaplessVec<BallKind, 16>) -> Vec<BallData> {
 #[derive(Clone, Copy, Debug)]
 pub enum PassiveEffect {
     Identity,
+    #[allow(dead_code)]
     AddMult(i32),
+    #[allow(dead_code)]
     AddBase(i32),
 }
 
@@ -67,6 +71,7 @@ impl PassiveEffect {
 pub enum ActiveEffect {
     Identity,
     AddMult(i32),
+    #[allow(dead_code)]
     AddBase(i32),
 }
 
@@ -83,6 +88,7 @@ impl ActiveEffect {
 #[derive(Clone, Copy, Debug)]
 pub enum BucketEffect {
     Identity,
+    #[allow(dead_code)]
     MultiplyMult(i32),
 }
 

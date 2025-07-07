@@ -5,14 +5,19 @@ const MAX_STACK_DEPTH: usize = 8;
 
 #[derive(Copy, Clone)]
 struct BenchEntry {
+    #[allow(dead_code)]
     tag: &'static str,
+    #[allow(dead_code)]
     total_time: u32,
+    #[allow(dead_code)]
     count: u32,
 }
 
 #[derive(Copy, Clone)]
 struct TimerFrame {
+    #[allow(dead_code)]
     tag: &'static str,
+    #[allow(dead_code)]
     start_time: (u16, u16),
 }
 
@@ -25,10 +30,15 @@ static mut STACK_TOP: usize = 0;
 
 pub fn init(timers: &mut Timers) {
     unsafe {
-        TIMERS = Some(core::mem::transmute(timers as *const _));
+        TIMERS = Some(core::mem::transmute::<
+            *const agb::timer::Timers<'_>,
+            *const agb::timer::Timers<'_>,
+        >(timers as *const _));
+        #[allow(clippy::needless_range_loop)]
         for i in 0..MAX_BENCHMARKS {
             BENCHMARKS[i] = None;
         }
+        #[allow(clippy::needless_range_loop)]
         for i in 0..MAX_STACK_DEPTH {
             TIMER_STACK[i] = None;
         }
@@ -71,7 +81,11 @@ pub fn stop(tag: &'static str) {
                         let elapsed = calc_elapsed(frame.start_time, end_time);
                         add_to_bench(tag, elapsed);
                     } else {
-                        agb::println!("[BENCH] Mismatched stop({}) expected ({})", tag, frame.tag);
+                        agb::println!(
+                            "[BENCH] Mismatched stop({}) expected ({})",
+                            tag,
+                            frame.tag
+                        );
                     }
                     TIMER_STACK[STACK_TOP] = None;
                 } else {
@@ -113,12 +127,13 @@ pub fn log() {
 fn calc_elapsed(start: (u16, u16), end: (u16, u16)) -> u32 {
     let start_val: u32 = ((start.0 as u32) << 16) + (start.1 as u32);
     let end_val: u32 = ((end.0 as u32) << 16) + (end.1 as u32);
-    
+
     let elapsed = end_val.wrapping_sub(start_val);
-    
+
     // Check for unrealistic values (likely timer overflow/underflow)
-    if elapsed > 1_000_000 {  // More than ~1M cycles is suspicious for short operations
-        0  // Return 0 for obviously invalid measurements
+    if elapsed > 1_000_000 {
+        // More than ~1M cycles is suspicious for short operations
+        0 // Return 0 for obviously invalid measurements
     } else {
         elapsed
     }
@@ -158,4 +173,3 @@ pub fn stop(_tag: &'static str) {}
 
 #[cfg(not(feature = "benchmark"))]
 pub fn log() {}
-
