@@ -5,10 +5,12 @@ use crate::save::Save;
 use crate::scenes::Scene;
 use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
+use agb::ExternalAllocator;
 use agb::display::GraphicsFrame;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use ball::Ball;
@@ -49,8 +51,8 @@ struct GameState<const MAX_PEGS: usize> {
     bucket_effects: Vec<BucketEffect>,
     current_ball_data: Option<BallData>,
     input_velocity: Fixed,
-    pegs: Pegs<MAX_PEGS>,
-    physics: Physics<MAX_PEGS>,
+    pegs: Box<Pegs<MAX_PEGS>, ExternalAllocator>,
+    physics: Box<Physics<MAX_PEGS>, ExternalAllocator>,
     score: Score,
     state: State,
     direction_viewer: DirectionViewer,
@@ -59,9 +61,11 @@ struct GameState<const MAX_PEGS: usize> {
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
         let rng = &mut RandomNumberGenerator::new();
-        let pegs = Self::spawn_pegs(rng);
-        let physics =
-            Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?;
+        let pegs = Box::new_in(Self::spawn_pegs(rng), ExternalAllocator);
+        let physics = Box::new_in(
+            Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?,
+            ExternalAllocator,
+        );
 
         Ok(Self {
             ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),

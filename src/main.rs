@@ -121,16 +121,19 @@ mod tests {
         agb::println!("Testing save system");
 
         let mut save = Save::new();
-        assert!(save.is_empty());
+        assert!(save.inventory().is_empty());
 
         let result = save.push_ball(BallKind::Identity);
         assert!(result.is_ok());
-        assert_eq!(save.len(), 1);
+        assert_eq!(save.inventory().len(), 1);
 
         let result = save.push_ball(BallKind::TheDoubler);
         assert!(result.is_ok());
-        assert_eq!(save.len(), 2);
+        assert_eq!(save.inventory().len(), 2);
 
-        agb::println!("Save system: OK - {} balls stored", save.len());
+        agb::println!(
+            "Save system: OK - {} balls stored",
+            save.inventory().len()
+        );
     }
 }

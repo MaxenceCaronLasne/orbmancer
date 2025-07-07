@@ -1,5 +1,5 @@
-use agb::fixnum::{Vector2D, vec2, num};
-use alloc::vec::Vec;
+use agb::fixnum::{Vector2D, num, vec2};
+use heapless::Vec as HeaplessVec;
 
 use crate::Coordinates;
 use crate::error::Error;
@@ -10,8 +10,8 @@ const NB_HEIGHT: usize = 20;
 const SHIFT_VALUE: usize = 3;
 
 pub struct Grid2D<Index = u8> {
-    grid: [[[Option<Index>; MAX_NB_NEIGHBOR_PER_CELL]; NB_HEIGHT]; NB_WIDTH],
-    neighbors: Vec<Index>,
+    grid: [[HeaplessVec<Index, MAX_NB_NEIGHBOR_PER_CELL>; NB_HEIGHT]; NB_WIDTH],
+    neighbors: HeaplessVec<Index, 64>,
 }
 
 impl<Index> Grid2D<Index>
@@ -21,14 +21,20 @@ where
     fn spatial_to_grid_coords(
         coordinates: &Coordinates,
     ) -> Result<(usize, usize), Error> {
-        const GRID_MAX_COORD: i32 = ((NB_WIDTH - 1) * (1 << SHIFT_VALUE)) as i32;
+        const GRID_MAX_COORD: i32 =
+            ((NB_WIDTH - 1) * (1 << SHIFT_VALUE)) as i32;
         const GRID_MIN_COORD: i32 = 0;
 
-        let clamped_x = coordinates.x.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
-        let clamped_y = coordinates.y.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+        let clamped_x = coordinates
+            .x
+            .clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+        let clamped_y = coordinates
+            .y
+            .clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
 
         let round = vec2(clamped_x, clamped_y).round();
-        let unsigned = Vector2D::new(round.x.unsigned_abs(), round.y.unsigned_abs());
+        let unsigned =
+            Vector2D::new(round.x.unsigned_abs(), round.y.unsigned_abs());
 
         match (
             (unsigned.x >> SHIFT_VALUE).try_into(),
@@ -41,43 +47,33 @@ where
 
     fn insert_in_cell(
         index: Index,
-        cell: &mut [Option<Index>],
+        cell: &mut HeaplessVec<Index, MAX_NB_NEIGHBOR_PER_CELL>,
     ) -> Result<(), Error> {
-        for c in cell.iter_mut() {
-            if c.is_none() {
-                *c = Some(index);
-                return Ok(());
-            }
-        }
-
-        Err(Error::CellFull)
+        cell.push(index).map_err(|_| Error::CellFull)
     }
 
     fn remove_in_cell(
         index: Index,
-        cell: &mut [Option<Index>],
+        cell: &mut HeaplessVec<Index, MAX_NB_NEIGHBOR_PER_CELL>,
     ) -> Result<(), Error> {
-        for c in cell.iter_mut() {
-            if let Some(i) = c
-                && *i == index
-            {
-                *c = None;
-                return Ok(());
-            }
+        if let Some(pos) = cell.iter().position(|&x| x == index) {
+            cell.swap_remove(pos);
+            Ok(())
+        } else {
+            Err(Error::NeighborNotFound)
         }
-
-        Err(Error::NeighborNotFound)
     }
 
     pub fn new(
         positions: &[Coordinates],
         collidable: &[bool],
     ) -> Result<Self, Error> {
+        let grid: [[HeaplessVec<Index, MAX_NB_NEIGHBOR_PER_CELL>; NB_HEIGHT];
+            NB_WIDTH] = Default::default();
+
         let mut res = Self {
-            grid: core::array::from_fn(|_| {
-                core::array::from_fn(|_| [None; MAX_NB_NEIGHBOR_PER_CELL])
-            }),
-            neighbors: Vec::new(),
+            grid,
+            neighbors: HeaplessVec::new(),
         };
 
         for (i, p) in positions.iter().enumerate() {
@@ -129,8 +125,10 @@ where
                     continue;
                 }
 
-                for &i in self.grid[x][y].iter().flatten() {
-                    self.neighbors.push(i);
+                for &i in self.grid[x][y].iter() {
+                    self.neighbors
+                        .push(i)
+                        .map_err(|_| Error::TooManyNeighbors)?;
                 }
             }
         }
@@ -143,8 +141,10 @@ pub fn clamp_position_to_grid(position: Coordinates) -> Coordinates {
     const GRID_MAX_COORD: i32 = ((NB_WIDTH - 1) * (1 << SHIFT_VALUE)) as i32;
     const GRID_MIN_COORD: i32 = 0;
 
-    let clamped_x = position.x.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
-    let clamped_y = position.y.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+    let clamped_x =
+        position.x.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
+    let clamped_y =
+        position.y.clamp(num!(GRID_MIN_COORD), num!(GRID_MAX_COORD));
 
     vec2(clamped_x, clamped_y)
 }

@@ -6,4 +6,5 @@ pub enum Error {
     NeighborNotFound,
     NoBalls,
     InventoryFull,
+    TooManyNeighbors,
 }
