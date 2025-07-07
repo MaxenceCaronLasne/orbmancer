@@ -7,6 +7,7 @@ use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
 use agb::InternalAllocator;
 use agb::display::GraphicsFrame;
+use agb::display::tiled::RegularBackground;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
 use agb::rng::RandomNumberGenerator;
@@ -18,6 +19,7 @@ use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
 use peg::{Kind, Pegs};
 
+mod background;
 pub mod ball;
 pub mod bucket;
 pub mod direction_viewer;
@@ -56,6 +58,7 @@ struct GameState<const MAX_PEGS: usize> {
     score: Score,
     state: State,
     direction_viewer: DirectionViewer,
+    background: RegularBackground,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -102,6 +105,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             physics,
             score: Score::new(),
             state: State::Aiming,
+            background: background::new(),
         })
     }
 
@@ -202,6 +206,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.pegs.show(frame);
         self.ball.show(frame);
         self.bucket.show(frame);
+        self.background.show(frame);
 
         if matches!(self.state, State::Aiming) {
             self.direction_viewer.show(frame);
