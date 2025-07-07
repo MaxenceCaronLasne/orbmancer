@@ -5,7 +5,7 @@ use crate::save::Save;
 use crate::scenes::Scene;
 use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
-use agb::ExternalAllocator;
+use agb::InternalAllocator;
 use agb::display::GraphicsFrame;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
@@ -51,8 +51,8 @@ struct GameState<const MAX_PEGS: usize> {
     bucket_effects: Vec<BucketEffect>,
     current_ball_data: Option<BallData>,
     input_velocity: Fixed,
-    pegs: Box<Pegs<MAX_PEGS>, ExternalAllocator>,
-    physics: Box<Physics<MAX_PEGS>, ExternalAllocator>,
+    pegs: Box<Pegs<MAX_PEGS>, InternalAllocator>,
+    physics: Box<Physics<MAX_PEGS>, InternalAllocator>,
     score: Score,
     state: State,
     direction_viewer: DirectionViewer,
@@ -60,11 +60,28 @@ struct GameState<const MAX_PEGS: usize> {
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
+        // Get current stack address
+        let stack_var = 0u32;
+        let stack_addr = &stack_var as *const u32 as usize;
+
         let rng = &mut RandomNumberGenerator::new();
-        let pegs = Box::new_in(Self::spawn_pegs(rng), ExternalAllocator);
+        let pegs = Box::new_in(Self::spawn_pegs(rng), InternalAllocator);
         let physics = Box::new_in(
             Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?,
-            ExternalAllocator,
+            InternalAllocator,
+        );
+
+        // Print addresses and sizes
+        agb::println!("Stack address: 0x{:08X}", stack_addr);
+        agb::println!(
+            "Pegs address: 0x{:08X}, size: {} bytes",
+            pegs.as_ref() as *const _ as usize,
+            core::mem::size_of::<Pegs<MAX_PEGS>>()
+        );
+        agb::println!(
+            "Physics address: 0x{:08X}, size: {} bytes",
+            physics.as_ref() as *const _ as usize,
+            core::mem::size_of::<Physics<MAX_PEGS>>()
         );
 
         Ok(Self {
