@@ -55,7 +55,9 @@ struct GameState<const MAX_PEGS: usize> {
     input_velocity: Fixed,
     pegs: Box<Pegs<MAX_PEGS>, InternalAllocator>,
     physics: Box<Physics<MAX_PEGS>, InternalAllocator>,
-    score: Score,
+    current_score: Option<Score>,
+    damages: score::Damage,
+    coins: score::Coins,
     state: State,
     direction_viewer: DirectionViewer,
     background: RegularBackground,
@@ -103,7 +105,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             input_velocity: num!(BALL_START_Y),
             pegs,
             physics,
-            score: Score::new(),
+            current_score: None,
+            damages: 0,
+            coins: 0,
             state: State::Aiming,
             background: background::new(),
         })
@@ -274,23 +278,23 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         for &i in touched {
             self.pegs.collidable[i] = false;
 
-            let (mut base, mut mult) = match self.pegs.kind[i] {
-                Kind::Blue => (1, 0),
-                Kind::Red => (0, 1),
-            };
+            let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
+
+            score.apply(match self.pegs.kind[i] {
+                Kind::Blue => Score::new(1, 0, 0),
+                Kind::Red => Score::new(0, 1, 0),
+                Kind::Yellow => Score::new(0, 0, 1),
+            });
 
             for pe in &self.inventory {
-                (base, mult) = pe.passive().apply(base, mult);
+                score = pe.passive().apply(score);
             }
 
             if let Some(ball_data) = &self.current_ball_data {
-                (base, mult) = ball_data.active().apply(base, mult);
+                score = ball_data.active().apply(score);
             }
 
-            self.score.base += base;
-            self.score.mult += mult;
-
-            agb::println!("Added: ({}, {})", base, mult);
+            self.current_score = Some(score);
         }
 
         if self.ball.position.y > num!(SCREEN_BOTTOM) {
@@ -314,22 +318,29 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         if is_bucketed {
+            let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
+
             agb::println!("Bucket!");
             for e in &self.bucket_effects {
-                let (base, mult) = e.apply(self.score.base, self.score.mult);
-
-                self.score.base = base;
-                self.score.mult = mult;
+                score = e.apply(score);
             }
+
+            self.current_score = Some(score);
         }
 
-        self.score.commit();
+        if let Some(score) = self.current_score {
+            let (damages, coins) = score.extract();
+            self.damages += damages;
+            self.coins += coins;
+        }
+
+        self.current_score = None;
 
         Ok(State::Aiming)
     }
 
     pub fn is_winning(&self) -> bool {
-        self.score.total() > TARGET_SCORE
+        self.damages > TARGET_SCORE
     }
 }
 

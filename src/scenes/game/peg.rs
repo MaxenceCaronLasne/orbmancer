@@ -16,6 +16,7 @@ include_aseprite!(
 pub enum Kind {
     Blue,
     Red,
+    Yellow,
 }
 
 pub struct Pegs<const N: usize> {

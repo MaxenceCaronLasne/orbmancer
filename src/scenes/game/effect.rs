@@ -1,4 +1,5 @@
 use crate::save::BallKind;
+use crate::scenes::game::score::Score;
 use alloc::vec::Vec;
 use heapless::Vec as HeaplessVec;
 
@@ -45,7 +46,10 @@ impl BallData {
 }
 
 pub fn from_kinds(kinds: &HeaplessVec<BallKind, 16>) -> Vec<BallData> {
-    kinds.iter().map(|kind| BallData::from_kind(*kind)).collect()
+    kinds
+        .iter()
+        .map(|kind| BallData::from_kind(*kind))
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -58,11 +62,11 @@ pub enum PassiveEffect {
 }
 
 impl PassiveEffect {
-    pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
+    pub fn apply(self, score: Score) -> Score {
         match self {
-            PassiveEffect::Identity => (base, mult),
-            PassiveEffect::AddMult(m) => (base, mult + m),
-            PassiveEffect::AddBase(b) => (base + b, mult),
+            PassiveEffect::Identity => score,
+            PassiveEffect::AddMult(m) => score.add(0, m, 0),
+            PassiveEffect::AddBase(b) => score.add(b, 0, 0),
         }
     }
 }
@@ -76,11 +80,11 @@ pub enum ActiveEffect {
 }
 
 impl ActiveEffect {
-    pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
+    pub fn apply(self, score: Score) -> Score {
         match self {
-            ActiveEffect::Identity => (base, mult),
-            ActiveEffect::AddMult(m) => (base, mult + m),
-            ActiveEffect::AddBase(b) => (base + b, mult),
+            ActiveEffect::Identity => score,
+            ActiveEffect::AddMult(m) => score.add(0, m, 0),
+            ActiveEffect::AddBase(b) => score.add(b, 0, 0),
         }
     }
 }
@@ -93,10 +97,10 @@ pub enum BucketEffect {
 }
 
 impl BucketEffect {
-    pub fn apply(self, base: i32, mult: i32) -> (i32, i32) {
+    pub fn apply(self, score: Score) -> Score {
         match self {
-            BucketEffect::Identity => (base, mult),
-            BucketEffect::MultiplyMult(m) => (base, mult * m),
+            BucketEffect::Identity => score,
+            BucketEffect::MultiplyMult(m) => score.mult(1, m, 1),
         }
     }
 }

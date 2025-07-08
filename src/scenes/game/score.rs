@@ -1,33 +1,44 @@
-pub struct Score {
-    pub base: i32,
-    pub mult: i32,
+pub type Component = i32;
+pub type Damage = i32;
+pub type Coins = i32;
 
-    total: i32,
+#[derive(Clone, Copy, Debug)]
+pub struct Score {
+    base: Component,
+    mult: Component,
+    coins: Coins,
 }
 
 impl Score {
-    pub fn new() -> Self {
+    pub fn new(base: Component, mult: Component, coins: Coins) -> Self {
+        Self { base, mult, coins }
+    }
+
+    pub fn add(self, base: Component, mult: Component, coins: Coins) -> Self {
         Self {
-            base: 0,
-            mult: 1,
-            total: 0,
+            base: self.base + base,
+            mult: self.mult + mult,
+            coins: self.coins + coins,
         }
     }
 
-    pub fn commit(&mut self) {
-        self.total += self.base * self.mult;
-        agb::println!(
-            "{} * {} = {} += {}",
-            self.mult,
-            self.base,
-            self.base * self.mult,
-            self.total
-        );
-        self.base = 0;
-        self.mult = 1;
+    pub fn mult(self, base: Component, mult: Component, coins: Coins) -> Self {
+        Self {
+            base: self.base * base,
+            mult: self.mult * mult,
+            coins: self.coins * coins,
+        }
     }
 
-    pub fn total(&self) -> i32 {
-        self.total
+    pub fn apply(self, score: Score) -> Self {
+        Self {
+            base: self.base + score.base,
+            mult: self.mult + score.mult,
+            coins: self.coins + score.coins,
+        }
+    }
+
+    pub fn extract(self) -> (Damage, Coins) {
+        (self.base * self.mult, self.coins)
     }
 }
