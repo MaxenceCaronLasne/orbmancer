@@ -142,6 +142,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
             kind[i] = if rng.next_i32() > 0 {
                 Kind::Blue
+            } else if rng.next_i32() > 0 {
+                Kind::Yellow
             } else {
                 Kind::Red
             }
@@ -263,7 +265,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         crate::bench::start("UPDATE_BALL_TOP");
         let (position, velocity, touched) = self.physics
-        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, 8, 8, 152, 180>(
+        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, 8, 0, 152, 180>(
             self.ball.position,
             self.ball.velocity,
             &self.pegs.positions,
@@ -335,6 +337,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         self.current_score = None;
+
+        agb::println!("Score: {} damages, {} coins", self.damages, self.coins);
 
         Ok(State::Aiming)
     }
