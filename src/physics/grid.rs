@@ -5,7 +5,7 @@ use crate::Coordinates;
 use crate::error::Error;
 
 const MAX_NB_NEIGHBOR_PER_CELL: usize = 8;
-const NB_WIDTH: usize = 20;
+const NB_WIDTH: usize = 24;
 const NB_HEIGHT: usize = 20;
 const SHIFT_VALUE: usize = 3;
 

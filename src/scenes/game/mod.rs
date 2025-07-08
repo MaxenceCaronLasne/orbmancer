@@ -33,12 +33,14 @@ mod test;
 const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const DELTA_TIME: f32 = 1.0 / 60.0;
-const BALL_START_X: f32 = 21.0;
+const BALL_START_X: f32 = 100.0;
 const BALL_START_Y: f32 = 0.0;
 const BUCKET_START_X: f32 = 80.0;
 const BUCKET_START_Y: f32 = 140.0;
 const SCREEN_BOTTOM: f32 = 168.0;
 const TARGET_SCORE: i32 = 1000;
+const WALL_LEFT: i32 = 3 * 8 + 1;
+const WALL_RIGHT: i32 = WALL_LEFT + 160 - 8 - 1;
 
 enum State {
     Aiming,
@@ -115,9 +117,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
     fn spawn_pegs(rng: &mut RandomNumberGenerator) -> Pegs<MAX_PEGS> {
         let peg_count = 50;
-        let screen_width = 140;
         let screen_height = 120;
-        let min_x = 20;
         let min_y = 30;
 
         let mut positions = [vec2(num!(0), num!(0)); MAX_PEGS];
@@ -127,7 +127,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         let mut kind = [Kind::Blue; MAX_PEGS];
 
         for i in 0..peg_count {
-            let x = min_x + (rng.next_i32().abs() % (screen_width - min_x));
+            let x = WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
             let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
 
             let force_radius_index =
@@ -169,7 +169,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         crate::bench::start("PEG_UPDATE");
         self.physics
-            .move_from_fields::<3000, 10, 10, 10, 150, 110, 15>(
+            .move_from_fields::<3000, 10, WALL_LEFT, 10, WALL_RIGHT, 110, 15>(
                 &mut self.pegs.positions,
                 &mut self.pegs.velocities,
                 &self.pegs.collidable,
@@ -178,7 +178,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             )?;
         crate::bench::stop("PEG_UPDATE");
 
-        self.bucket.update();
+        self.bucket.update::<WALL_LEFT, WALL_RIGHT>();
 
         self.state = match self.state {
             State::Aiming => self.update_aiming(input)?,
@@ -265,7 +265,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         crate::bench::start("UPDATE_BALL_TOP");
         let (position, velocity, touched) = self.physics
-        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, 8, 0, 152, 180>(
+        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, WALL_LEFT, 0, WALL_RIGHT, 180>(
             self.ball.position,
             self.ball.velocity,
             &self.pegs.positions,

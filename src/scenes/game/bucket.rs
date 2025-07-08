@@ -11,8 +11,6 @@ include_aseprite!(
     "assets/bucket.aseprite"
 );
 
-const MIN_X: f32 = 0.0;
-const MAX_X: f32 = 140.0;
 const SPEED: f32 = 1.0;
 
 pub struct Bucket {
@@ -52,12 +50,12 @@ impl Bucket {
         ]
     }
 
-    pub fn update(&mut self) {
+    pub fn update<const LEFT_WALL: i32, const RIGHT_WALL: i32>(&mut self) {
         self.position.x += self.direction * self.speed;
 
-        if self.position.x <= num!(MIN_X) {
+        if self.position.x <= num!(LEFT_WALL) {
             self.direction = num!(1.0);
-        } else if self.position.x >= num!(MAX_X) {
+        } else if self.position.x >= num!(RIGHT_WALL) {
             self.direction = num!(-1.0);
         }
 
