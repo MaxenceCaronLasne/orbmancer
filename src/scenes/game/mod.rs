@@ -280,9 +280,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         for &i in touched {
             self.pegs.collidable[i] = false;
 
-            let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
+            let mut score = self.current_score.unwrap_or(Score::new(0, 0, 0));
 
-            score.apply(match self.pegs.kind[i] {
+            score = score.apply(match self.pegs.kind[i] {
                 Kind::Blue => Score::new(1, 0, 0),
                 Kind::Red => Score::new(0, 1, 0),
                 Kind::Yellow => Score::new(0, 0, 1),
