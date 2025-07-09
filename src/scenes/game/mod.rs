@@ -17,9 +17,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 use ball::Ball;
 use counter::Counter;
-use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
 use inventory::InventoryPresenter;
+use launcher::Launcher;
 use peg::{Kind, Pegs};
 use text_box::TextBox;
 
@@ -27,9 +27,9 @@ mod background;
 pub mod ball;
 pub mod bucket;
 pub mod counter;
-pub mod direction_viewer;
 pub mod effect;
 pub mod inventory;
+mod launcher;
 pub mod peg;
 pub mod score;
 mod text_box;
@@ -37,8 +37,6 @@ mod text_box;
 #[cfg(test)]
 mod test;
 
-const MAX_INPUT_VELOCITY: f32 = 100.0;
-const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const DELTA_TIME: f32 = 1.0 / 60.0;
 const BALL_START_X: f32 = 100.0;
 const BALL_START_Y: f32 = 0.0;
@@ -63,7 +61,6 @@ struct GameState<const MAX_PEGS: usize> {
     bucket: Bucket,
     bucket_effects: Vec<BucketEffect>,
     current_ball_data: Option<BallData>,
-    input_velocity: Fixed,
     pegs: Box<Pegs<MAX_PEGS>, InternalAllocator>,
     physics: Box<Physics<MAX_PEGS>, InternalAllocator>,
     current_score: Option<Score>,
@@ -71,7 +68,6 @@ struct GameState<const MAX_PEGS: usize> {
     coins: score::Coins,
     state: State,
     last_state: Option<State>,
-    direction_viewer: DirectionViewer,
     background: RegularBackground,
     mult_counter: Counter,
     base_counter: Counter,
@@ -79,6 +75,7 @@ struct GameState<const MAX_PEGS: usize> {
     inventory_presenter: InventoryPresenter,
     current_inventory_presenter: usize,
     text_box: TextBox,
+    launcher: Launcher,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -118,11 +115,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             )),
             bucket_effects: vec![BucketEffect::Identity],
             current_ball_data: None,
-            direction_viewer: DirectionViewer::new(vec2(
+            launcher: Launcher::new(vec2(
                 num!(BALL_START_X),
                 num!(BALL_START_Y),
             )),
-            input_velocity: num!(BALL_START_Y),
             pegs,
             physics,
             current_score: None,
@@ -235,22 +231,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.text_box.show(frame);
 
         if matches!(self.state, State::Aiming) {
-            self.direction_viewer.show(frame);
+            self.launcher.show(frame);
         }
-    }
-
-    fn update_input_velocity_to_left(&mut self, delta: Fixed) {
-        self.input_velocity -= num!(VELOCITY_CHANGE_RATE) * delta;
-        self.input_velocity = self
-            .input_velocity
-            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
-    }
-
-    fn update_input_velocity_to_right(&mut self, delta: Fixed) {
-        self.input_velocity += num!(VELOCITY_CHANGE_RATE) * delta;
-        self.input_velocity = self
-            .input_velocity
-            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
     }
 
     fn update_aiming(
@@ -268,15 +250,15 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         let is_right_pressed = input.is_pressed(Button::RIGHT);
 
         if is_left_pressed && !is_right_pressed {
-            self.update_input_velocity_to_left(delta);
+            self.launcher.turn_left(delta);
         } else if is_right_pressed && !is_left_pressed {
-            self.update_input_velocity_to_right(delta);
+            self.launcher.turn_right(delta);
         }
 
-        self.direction_viewer.update_direction(self.input_velocity);
-
         if input.is_just_pressed(Button::A) {
-            self.ball.velocity = vec2(self.input_velocity, num!(BALL_START_Y));
+            self.ball.velocity =
+                vec2(self.launcher.velocity(), num!(BALL_START_Y));
+
             return Ok(State::Falling);
         }
 
