@@ -46,9 +46,11 @@ const TARGET_SCORE: i32 = 1000;
 const WALL_LEFT: i32 = 3 * 8 + 1;
 const WALL_RIGHT: i32 = WALL_LEFT + 160 - 8 - 1;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum State {
     Aiming,
     Falling,
+    InInventory,
     Counting { is_bucketed: bool },
 }
 
@@ -65,6 +67,7 @@ struct GameState<const MAX_PEGS: usize> {
     damages: score::Damage,
     coins: score::Coins,
     state: State,
+    last_state: Option<State>,
     direction_viewer: DirectionViewer,
     background: RegularBackground,
     mult_counter: Counter,
@@ -119,6 +122,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             damages: 0,
             coins: save.coins(),
             state: State::Aiming,
+            last_state: None,
             background: background::new(),
             base_counter: Counter::new(vec2(num!(206), num!(125)), Alignment::RightToLeft),
             mult_counter: Counter::new(vec2(num!(217), num!(125)), Alignment::LeftToRight),
@@ -173,12 +177,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
     }
 
-    pub fn update(
-        &mut self,
-        input: &mut ButtonController,
-    ) -> Result<Scene, Error> {
-        input.update();
-
+    fn update_pegs(&mut self) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
         self.physics
             .move_from_fields::<3000, 10, WALL_LEFT, 10, WALL_RIGHT, 110, 15>(
@@ -190,11 +189,24 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             )?;
         crate::bench::stop("PEG_UPDATE");
 
-        self.bucket.update::<WALL_LEFT, WALL_RIGHT>();
+        Ok(())
+    }
 
-        self.state = match self.state {
+    fn update_bucket(&mut self) -> Result<(), Error> {
+        self.bucket.update::<WALL_LEFT, WALL_RIGHT>();
+        Ok(())
+    }
+
+    pub fn update(
+        &mut self,
+        input: &mut ButtonController,
+    ) -> Result<Scene, Error> {
+        input.update();
+
+        let new_state = match self.state {
             State::Aiming => self.update_aiming(input)?,
-            State::Falling => self.update_falling()?,
+            State::Falling => self.update_falling(input)?,
+            State::InInventory => self.update_inventory(input)?,
             State::Counting { is_bucketed } => {
                 crate::bench::log();
                 let res = self.update_counting(is_bucketed)?;
@@ -216,6 +228,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 res
             }
         };
+
+        if new_state != self.state {
+            self.last_state = Some(self.state);
+        }
+        self.state = new_state;
 
         Ok(Scene::Game)
     }
@@ -255,6 +272,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     ) -> Result<State, Error> {
         self.ball.reset_sprite();
 
+        self.update_pegs()?;
+        self.update_bucket()?;
+
         let delta = num!(DELTA_TIME);
 
         let is_left_pressed = input.is_pressed(Button::LEFT);
@@ -272,12 +292,30 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             self.ball.velocity = vec2(self.input_velocity, num!(BALL_START_Y));
             return Ok(State::Falling);
         }
+        
+        if input.is_just_pressed(Button::SELECT) {
+            return Ok(State::InInventory);
+        }
 
         Ok(State::Aiming)
     }
 
-    fn update_falling(&mut self) -> Result<State, Error> {
+    fn update_inventory(&mut self, input: &ButtonController) -> Result<State, Error> {
+        if input.is_just_pressed(Button::SELECT) {
+            if let Some(last_state) = self.last_state {
+                return Ok(last_state);
+            } else {
+                return Err(Error::NoLastState)
+            }
+        }
+
+        Ok(State::InInventory)
+    }
+
+    fn update_falling(&mut self, input: &ButtonController) -> Result<State, Error> {
         self.ball.update();
+        self.update_pegs()?;
+        self.update_bucket()?;
 
         crate::bench::start("UPDATE_BALL_TOP");
         let (position, velocity, touched) = self.physics
@@ -326,11 +364,17 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             return Ok(State::Counting { is_bucketed: true });
         }
 
+        if input.is_just_pressed(Button::SELECT) {
+            return Ok(State::InInventory);
+        }
+
         Ok(State::Falling)
     }
 
     fn update_counting(&mut self, is_bucketed: bool) -> Result<State, Error> {
         self.ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
+        self.update_pegs()?;
+        self.update_bucket()?;
 
         for i in 0..MAX_PEGS {
             if !self.pegs.collidable[i] {

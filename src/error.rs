@@ -7,4 +7,5 @@ pub enum Error {
     NoBalls,
     InventoryFull,
     TooManyNeighbors,
+    NoLastState,
 }
