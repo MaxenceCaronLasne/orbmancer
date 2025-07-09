@@ -19,6 +19,7 @@ use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
 use peg::{Kind, Pegs};
 use counter::{Counter, Alignment};
+use inventory::InventoryPresenter;
 
 mod background;
 pub mod ball;
@@ -28,6 +29,7 @@ pub mod effect;
 pub mod peg;
 pub mod score;
 pub mod counter;
+pub mod inventory;
 
 #[cfg(test)]
 mod test;
@@ -68,6 +70,7 @@ struct GameState<const MAX_PEGS: usize> {
     mult_counter: Counter,
     base_counter: Counter,
     coin_counter: Counter,
+    inventory_presenter: InventoryPresenter,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -120,6 +123,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             base_counter: Counter::new(vec2(num!(206), num!(125)), Alignment::RightToLeft),
             mult_counter: Counter::new(vec2(num!(217), num!(125)), Alignment::LeftToRight),
             coin_counter: Counter::new(vec2(num!(234), num!(145)), Alignment::RightToLeft),
+            inventory_presenter: InventoryPresenter::new(vec2(num!(8), num!(16))),
         })
     }
 
@@ -224,6 +228,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.base_counter.show(frame);
         self.mult_counter.show(frame);
         self.coin_counter.show(frame);
+        self.inventory_presenter.show(frame, &self.inventory);
 
         if matches!(self.state, State::Aiming) {
             self.direction_viewer.show(frame);

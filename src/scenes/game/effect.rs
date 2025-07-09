@@ -5,6 +5,7 @@ use heapless::Vec as HeaplessVec;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BallData {
+    kind: BallKind,
     active: ActiveEffect,
     passive: PassiveEffect,
 }
@@ -13,23 +14,21 @@ impl BallData {
     #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
+            kind: BallKind::Identity,
             active: ActiveEffect::Identity,
             passive: PassiveEffect::Identity,
         }
     }
 
-    #[allow(dead_code)]
-    pub fn new(active: ActiveEffect, passive: PassiveEffect) -> Self {
-        Self { active, passive }
-    }
-
     pub fn from_kind(kind: BallKind) -> Self {
         match kind {
             BallKind::Identity => Self {
+                kind,
                 active: ActiveEffect::Identity,
                 passive: PassiveEffect::Identity,
             },
             BallKind::TheDoubler => Self {
+                kind,
                 active: ActiveEffect::AddMult(1),
                 passive: PassiveEffect::Identity,
             },
@@ -42,6 +41,10 @@ impl BallData {
 
     pub fn passive(&self) -> PassiveEffect {
         self.passive
+    }
+
+    pub fn kind(&self) -> BallKind {
+        self.kind
     }
 }
 

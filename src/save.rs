@@ -7,6 +7,15 @@ pub enum BallKind {
     TheDoubler,
 }
 
+impl BallKind {
+    pub fn sprite(&self) -> usize {
+        match self {
+            BallKind::Identity => 0,
+            BallKind::TheDoubler => 0,
+        }
+    }
+}
+
 pub struct Save {
     inventory: Vec<BallKind, 16>,
     coins: i32,
