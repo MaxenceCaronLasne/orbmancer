@@ -3,6 +3,7 @@ use agb::display::GraphicsFrame;
 use agb::display::object::Object;
 use agb::fixnum::{num, vec2};
 use agb::include_aseprite;
+use agb::rng::RandomNumberGenerator;
 
 pub const RADIUS: i32 = 3;
 pub const FORCE_RADII: [f32; 4] = [5.0, 10.0, 15.0, 20.0];
@@ -48,6 +49,46 @@ impl<const N: usize> Pegs<N> {
             collidable,
             kind,
         }
+    }
+
+    pub fn spawn_pegs<const WALL_LEFT: i32, const WALL_RIGHT: i32>(
+        rng: &mut RandomNumberGenerator,
+    ) -> Pegs<N> {
+        let peg_count = 50;
+        let screen_height = 120;
+        let min_y = 30;
+
+        let mut positions = [vec2(num!(0), num!(0)); N];
+        let mut force_radius_squared = [num!(20); N];
+        let mut showable = [false; N];
+        let mut collidable = [false; N];
+        let mut kind = [Kind::Blue; N];
+
+        for i in 0..peg_count {
+            let x =
+                WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
+            let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
+
+            let force_radius_index =
+                (rng.next_i32().abs() % FORCE_RADII.len() as i32) as usize;
+            let force_radius =
+                Fixed::new(FORCE_RADII[force_radius_index] as i32);
+
+            positions[i] = vec2(Fixed::new(x), Fixed::new(y));
+            force_radius_squared[i] = force_radius * force_radius;
+            showable[i] = true;
+            collidable[i] = true;
+
+            kind[i] = if rng.next_i32() > 0 {
+                Kind::Blue
+            } else if rng.next_i32() > 0 {
+                Kind::Yellow
+            } else {
+                Kind::Red
+            }
+        }
+
+        Pegs::new(positions, force_radius_squared, showable, collidable, kind)
     }
 
     pub fn show(&mut self, frame: &mut GraphicsFrame) {

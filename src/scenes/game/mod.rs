@@ -7,6 +7,7 @@ use crate::scenes::game::bucket::Bucket;
 use crate::scenes::game::score::Score;
 use agb::InternalAllocator;
 use agb::display::GraphicsFrame;
+use agb::display::font::AlignmentKind;
 use agb::display::tiled::RegularBackground;
 use agb::fixnum::{num, vec2};
 use agb::input::{Button, ButtonController};
@@ -15,7 +16,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use ball::Ball;
-use counter::{Alignment, Counter};
+use counter::Counter;
 use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
 use inventory::InventoryPresenter;
@@ -83,7 +84,10 @@ struct GameState<const MAX_PEGS: usize> {
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
         let rng = &mut RandomNumberGenerator::new();
-        let pegs = Box::new_in(Self::spawn_pegs(rng), InternalAllocator);
+        let pegs = Box::new_in(
+            Pegs::<MAX_PEGS>::spawn_pegs::<WALL_LEFT, WALL_RIGHT>(rng),
+            InternalAllocator,
+        );
         let physics = Box::new_in(
             Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?,
             InternalAllocator,
@@ -129,15 +133,15 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             background: background::new(),
             base_counter: Counter::new(
                 vec2(num!(206), num!(125)),
-                Alignment::RightToLeft,
+                AlignmentKind::Right,
             ),
             mult_counter: Counter::new(
                 vec2(num!(217), num!(125)),
-                Alignment::LeftToRight,
+                AlignmentKind::Left,
             ),
             coin_counter: Counter::new(
                 vec2(num!(234), num!(145)),
-                Alignment::RightToLeft,
+                AlignmentKind::Right,
             ),
             inventory_presenter: InventoryPresenter::new(vec2(
                 num!(8),
@@ -146,44 +150,6 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             current_inventory_presenter: 0,
             text_box: TextBox::new(vec2(189, 5), 46),
         })
-    }
-
-    fn spawn_pegs(rng: &mut RandomNumberGenerator) -> Pegs<MAX_PEGS> {
-        let peg_count = 50;
-        let screen_height = 120;
-        let min_y = 30;
-
-        let mut positions = [vec2(num!(0), num!(0)); MAX_PEGS];
-        let mut force_radius_squared = [num!(20); MAX_PEGS];
-        let mut showable = [false; MAX_PEGS];
-        let mut collidable = [false; MAX_PEGS];
-        let mut kind = [Kind::Blue; MAX_PEGS];
-
-        for i in 0..peg_count {
-            let x =
-                WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
-            let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
-
-            let force_radius_index =
-                (rng.next_i32().abs() % peg::FORCE_RADII.len() as i32) as usize;
-            let force_radius =
-                Fixed::new(peg::FORCE_RADII[force_radius_index] as i32);
-
-            positions[i] = vec2(Fixed::new(x), Fixed::new(y));
-            force_radius_squared[i] = force_radius * force_radius;
-            showable[i] = true;
-            collidable[i] = true;
-
-            kind[i] = if rng.next_i32() > 0 {
-                Kind::Blue
-            } else if rng.next_i32() > 0 {
-                Kind::Yellow
-            } else {
-                Kind::Red
-            }
-        }
-
-        Pegs::new(positions, force_radius_squared, showable, collidable, kind)
     }
 
     pub fn pop_ball(&mut self) -> Result<(), Error> {
