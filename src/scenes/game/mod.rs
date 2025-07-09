@@ -114,7 +114,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             physics,
             current_score: None,
             damages: 0,
-            coins: 0,
+            coins: save.coins(),
             state: State::Aiming,
             background: background::new(),
             base_counter: Counter::new(vec2(num!(206), num!(125)), Alignment::RightToLeft),

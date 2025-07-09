@@ -8,13 +8,15 @@ pub enum BallKind {
 }
 
 pub struct Save {
-    inventory: Vec<BallKind, 16>, // Max 16 balls in inventory
+    inventory: Vec<BallKind, 16>,
+    coins: i32,
 }
 
 impl Save {
     pub fn new() -> Self {
         Self {
             inventory: Vec::new(),
+            coins: 0,
         }
     }
 
@@ -24,6 +26,10 @@ impl Save {
 
     pub fn inventory(&self) -> &Vec<BallKind, 16> {
         &self.inventory
+    }
+
+    pub fn coins(&self) -> i32 {
+        self.coins
     }
 }
 

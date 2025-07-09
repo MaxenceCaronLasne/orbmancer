@@ -1,7 +1,7 @@
 use crate::Coordinates;
 use agb::display::GraphicsFrame;
 use agb::{
-    fixnum::{num, vec2},
+    fixnum::{vec2},
     include_aseprite,
 };
 use alloc::vec::Vec;
