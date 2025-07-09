@@ -74,6 +74,7 @@ struct GameState<const MAX_PEGS: usize> {
     base_counter: Counter,
     coin_counter: Counter,
     inventory_presenter: InventoryPresenter,
+    current_inventory_presenter: usize,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -102,9 +103,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             core::mem::size_of::<Physics<MAX_PEGS>>()
         );
 
+        let inventory = effect::from_kinds(save.inventory());
+
         Ok(Self {
             ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
-            inventory: effect::from_kinds(save.inventory()),
+            inventory,
             bucket: Bucket::new(vec2(
                 num!(BUCKET_START_X),
                 num!(BUCKET_START_Y),
@@ -128,6 +131,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             mult_counter: Counter::new(vec2(num!(217), num!(125)), Alignment::LeftToRight),
             coin_counter: Counter::new(vec2(num!(234), num!(145)), Alignment::RightToLeft),
             inventory_presenter: InventoryPresenter::new(vec2(num!(8), num!(16))),
+            current_inventory_presenter: 0,
         })
     }
 
@@ -294,6 +298,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
         
         if input.is_just_pressed(Button::SELECT) {
+            if let Some(ball_data) = self.inventory.first() {
+                self.inventory_presenter.select(ball_data);
+            }
             return Ok(State::InInventory);
         }
 
@@ -302,12 +309,29 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
     fn update_inventory(&mut self, input: &ButtonController) -> Result<State, Error> {
         if input.is_just_pressed(Button::SELECT) {
+            self.inventory_presenter.remove();
             if let Some(last_state) = self.last_state {
                 return Ok(last_state);
             } else {
                 return Err(Error::NoLastState)
             }
         }
+
+        if input.is_just_pressed(Button::UP) {
+            if self.current_inventory_presenter > 0 {
+                self.current_inventory_presenter -= 1;
+                self.inventory_presenter.select(&self.inventory[self.current_inventory_presenter]);
+            }
+        }
+
+        if input.is_just_pressed(Button::DOWN) {
+            if self.current_inventory_presenter < self.inventory.len() - 1 {
+                self.current_inventory_presenter += 1;
+                self.inventory_presenter.select(&self.inventory[self.current_inventory_presenter]);
+            }
+        }
+
+        self.inventory_presenter.update();
 
         Ok(State::InInventory)
     }

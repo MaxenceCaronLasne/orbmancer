@@ -14,6 +14,13 @@ impl BallKind {
             BallKind::TheDoubler => 0,
         }
     }
+
+    pub fn description(&self) -> &str {
+        match self {
+            BallKind::Identity => "just a ball...",
+            BallKind::TheDoubler => "the doubler",
+        }
+    }
 }
 
 pub struct Save {
