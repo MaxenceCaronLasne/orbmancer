@@ -18,6 +18,7 @@ use ball::Ball;
 use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
 use peg::{Kind, Pegs};
+use counter::{Counter, Alignment};
 
 mod background;
 pub mod ball;
@@ -26,6 +27,7 @@ pub mod direction_viewer;
 pub mod effect;
 pub mod peg;
 pub mod score;
+pub mod counter;
 
 #[cfg(test)]
 mod test;
@@ -63,6 +65,9 @@ struct GameState<const MAX_PEGS: usize> {
     state: State,
     direction_viewer: DirectionViewer,
     background: RegularBackground,
+    mult_counter: Counter,
+    base_counter: Counter,
+    coin_counter: Counter,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -112,6 +117,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             coins: 0,
             state: State::Aiming,
             background: background::new(),
+            base_counter: Counter::new(vec2(num!(206), num!(125)), Alignment::RightToLeft),
+            mult_counter: Counter::new(vec2(num!(217), num!(125)), Alignment::LeftToRight),
+            coin_counter: Counter::new(vec2(num!(234), num!(145)), Alignment::RightToLeft),
         })
     }
 
@@ -213,6 +221,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.ball.show(frame);
         self.bucket.show(frame);
         self.background.show(frame);
+        self.base_counter.show(frame);
+        self.mult_counter.show(frame);
+        self.coin_counter.show(frame);
 
         if matches!(self.state, State::Aiming) {
             self.direction_viewer.show(frame);
@@ -296,6 +307,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 score = ball_data.active().apply(score);
             }
 
+            self.mult_counter.set(score.mult);
+            self.base_counter.set(score.base);
+            self.coin_counter.set(self.coins + score.coins);
             self.current_score = Some(score);
         }
 
@@ -327,6 +341,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 score = e.apply(score);
             }
 
+            self.mult_counter.set(score.mult);
+            self.base_counter.set(score.base);
+            self.coin_counter.set(self.coins + score.coins);
             self.current_score = Some(score);
         }
 
@@ -337,6 +354,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         self.current_score = None;
+        self.mult_counter.reset();
+        self.base_counter.reset();
 
         agb::println!("Score: {} damages, {} coins", self.damages, self.coins);
 

@@ -4,9 +4,9 @@ pub type Coins = i32;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Score {
-    base: Component,
-    mult: Component,
-    coins: Coins,
+    pub base: Component,
+    pub mult: Component,
+    pub coins: Coins,
 }
 
 impl Score {
