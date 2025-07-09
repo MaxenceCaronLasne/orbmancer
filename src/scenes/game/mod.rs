@@ -15,21 +15,23 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use ball::Ball;
+use counter::{Alignment, Counter};
 use direction_viewer::DirectionViewer;
 use effect::{BallData, BucketEffect};
-use peg::{Kind, Pegs};
-use counter::{Counter, Alignment};
 use inventory::InventoryPresenter;
+use peg::{Kind, Pegs};
+use text_box::TextBox;
 
 mod background;
 pub mod ball;
 pub mod bucket;
+pub mod counter;
 pub mod direction_viewer;
 pub mod effect;
+pub mod inventory;
 pub mod peg;
 pub mod score;
-pub mod counter;
-pub mod inventory;
+mod text_box;
 
 #[cfg(test)]
 mod test;
@@ -75,35 +77,33 @@ struct GameState<const MAX_PEGS: usize> {
     coin_counter: Counter,
     inventory_presenter: InventoryPresenter,
     current_inventory_presenter: usize,
+    text_box: TextBox,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
-        // Get current stack address
-        let stack_var = 0u32;
-        let stack_addr = &stack_var as *const u32 as usize;
-
         let rng = &mut RandomNumberGenerator::new();
         let pegs = Box::new_in(Self::spawn_pegs(rng), InternalAllocator);
         let physics = Box::new_in(
             Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?,
             InternalAllocator,
         );
-
-        // Print addresses and sizes
-        agb::println!("Stack address: 0x{:08X}", stack_addr);
-        agb::println!(
-            "Pegs address: 0x{:08X}, size: {} bytes",
-            pegs.as_ref() as *const _ as usize,
-            core::mem::size_of::<Pegs<MAX_PEGS>>()
-        );
-        agb::println!(
-            "Physics address: 0x{:08X}, size: {} bytes",
-            physics.as_ref() as *const _ as usize,
-            core::mem::size_of::<Physics<MAX_PEGS>>()
-        );
-
         let inventory = effect::from_kinds(save.inventory());
+
+        // Get current stack address
+        // let stack_var = 0u32;
+        // let stack_addr = &stack_var as *const u32 as usize;
+        // agb::println!("Stack address: 0x{:08X}", stack_addr);
+        // agb::println!(
+        //     "Pegs address: 0x{:08X}, size: {} bytes",
+        //     pegs.as_ref() as *const _ as usize,
+        //     core::mem::size_of::<Pegs<MAX_PEGS>>()
+        // );
+        // agb::println!(
+        //     "Physics address: 0x{:08X}, size: {} bytes",
+        //     physics.as_ref() as *const _ as usize,
+        //     core::mem::size_of::<Physics<MAX_PEGS>>()
+        // );
 
         Ok(Self {
             ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
@@ -127,11 +127,24 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             state: State::Aiming,
             last_state: None,
             background: background::new(),
-            base_counter: Counter::new(vec2(num!(206), num!(125)), Alignment::RightToLeft),
-            mult_counter: Counter::new(vec2(num!(217), num!(125)), Alignment::LeftToRight),
-            coin_counter: Counter::new(vec2(num!(234), num!(145)), Alignment::RightToLeft),
-            inventory_presenter: InventoryPresenter::new(vec2(num!(8), num!(16))),
+            base_counter: Counter::new(
+                vec2(num!(206), num!(125)),
+                Alignment::RightToLeft,
+            ),
+            mult_counter: Counter::new(
+                vec2(num!(217), num!(125)),
+                Alignment::LeftToRight,
+            ),
+            coin_counter: Counter::new(
+                vec2(num!(234), num!(145)),
+                Alignment::RightToLeft,
+            ),
+            inventory_presenter: InventoryPresenter::new(vec2(
+                num!(8),
+                num!(16),
+            )),
             current_inventory_presenter: 0,
+            text_box: TextBox::new(vec2(189, 5), 46),
         })
     }
 
@@ -147,7 +160,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         let mut kind = [Kind::Blue; MAX_PEGS];
 
         for i in 0..peg_count {
-            let x = WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
+            let x =
+                WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
             let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
 
             let force_radius_index =
@@ -206,6 +220,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input: &mut ButtonController,
     ) -> Result<Scene, Error> {
         input.update();
+        self.text_box.update();
 
         let new_state = match self.state {
             State::Aiming => self.update_aiming(input)?,
@@ -229,6 +244,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                     }
                 }
 
+                self.set_text_box_to_current_data();
                 res
             }
         };
@@ -250,6 +266,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.mult_counter.show(frame);
         self.coin_counter.show(frame);
         self.inventory_presenter.show(frame, &self.inventory);
+        self.text_box.show(frame);
 
         if matches!(self.state, State::Aiming) {
             self.direction_viewer.show(frame);
@@ -296,10 +313,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             self.ball.velocity = vec2(self.input_velocity, num!(BALL_START_Y));
             return Ok(State::Falling);
         }
-        
+
         if input.is_just_pressed(Button::SELECT) {
             if let Some(ball_data) = self.inventory.first() {
-                self.inventory_presenter.select(ball_data);
+                self.text_box.set_text(ball_data.kind().description());
             }
             return Ok(State::InInventory);
         }
@@ -307,28 +324,46 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         Ok(State::Aiming)
     }
 
-    fn update_inventory(&mut self, input: &ButtonController) -> Result<State, Error> {
+    fn set_text_box_to_current_data(&mut self) {
+        self.text_box.remove();
+        if let Some(ball_data) = self.current_ball_data {
+            self.text_box.set_text(ball_data.kind().description());
+        }
+    }
+
+    fn update_inventory(
+        &mut self,
+        input: &ButtonController,
+    ) -> Result<State, Error> {
         if input.is_just_pressed(Button::SELECT) {
-            self.inventory_presenter.remove();
+            self.set_text_box_to_current_data();
             if let Some(last_state) = self.last_state {
                 return Ok(last_state);
             } else {
-                return Err(Error::NoLastState)
+                return Err(Error::NoLastState);
             }
         }
 
-        if input.is_just_pressed(Button::UP) {
-            if self.current_inventory_presenter > 0 {
-                self.current_inventory_presenter -= 1;
-                self.inventory_presenter.select(&self.inventory[self.current_inventory_presenter]);
-            }
+        if input.is_just_pressed(Button::UP)
+            && self.current_inventory_presenter > 0
+        {
+            self.current_inventory_presenter -= 1;
+            self.text_box.set_text(
+                self.inventory[self.current_inventory_presenter]
+                    .kind()
+                    .description(),
+            );
         }
 
-        if input.is_just_pressed(Button::DOWN) {
-            if self.current_inventory_presenter < self.inventory.len() - 1 {
-                self.current_inventory_presenter += 1;
-                self.inventory_presenter.select(&self.inventory[self.current_inventory_presenter]);
-            }
+        if input.is_just_pressed(Button::DOWN)
+            && self.current_inventory_presenter < self.inventory.len() - 1
+        {
+            self.current_inventory_presenter += 1;
+            self.text_box.set_text(
+                self.inventory[self.current_inventory_presenter]
+                    .kind()
+                    .description(),
+            );
         }
 
         self.inventory_presenter.update();
@@ -336,7 +371,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         Ok(State::InInventory)
     }
 
-    fn update_falling(&mut self, input: &ButtonController) -> Result<State, Error> {
+    fn update_falling(
+        &mut self,
+        input: &ButtonController,
+    ) -> Result<State, Error> {
         self.ball.update();
         self.update_pegs()?;
         self.update_bucket()?;
@@ -449,6 +487,8 @@ pub fn main(gba: &mut agb::Gba, save: &mut Save) -> Result<Scene, Error> {
     game_state.pop_ball()?;
 
     crate::bench::init(&mut timers);
+
+    game_state.set_text_box_to_current_data();
 
     loop {
         match game_state.update(&mut input) {

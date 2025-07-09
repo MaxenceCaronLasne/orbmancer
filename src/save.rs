@@ -18,7 +18,7 @@ impl BallKind {
     pub fn description(&self) -> &str {
         match self {
             BallKind::Identity => "just a ball...",
-            BallKind::TheDoubler => "the doubler",
+            BallKind::TheDoubler => "The Doubler",
         }
     }
 }
