@@ -1,10 +1,8 @@
-use crate::Fixed;
 use crate::error::Error;
 use crate::physics::Physics;
 use crate::save::Save;
 use crate::scenes::Scene;
 use crate::scenes::game::bucket::Bucket;
-use crate::scenes::game::score::Score;
 use agb::InternalAllocator;
 use agb::display::GraphicsFrame;
 use agb::display::font::AlignmentKind;
@@ -16,16 +14,19 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use ball::Ball;
+use config::GameConfig;
 use counter::Counter;
 use effect::{BallData, BucketEffect};
 use inventory::InventoryPresenter;
 use launcher::Launcher;
-use peg::{Kind, Pegs};
+use peg::Pegs;
+use score::ScoreManager;
 use text_box::TextBox;
 
 mod background;
 pub mod ball;
 pub mod bucket;
+mod config;
 pub mod counter;
 pub mod effect;
 pub mod inventory;
@@ -37,15 +38,36 @@ mod text_box;
 #[cfg(test)]
 mod test;
 
-const DELTA_TIME: f32 = 1.0 / 60.0;
-const BALL_START_X: f32 = 100.0;
-const BALL_START_Y: f32 = 0.0;
-const BUCKET_START_X: f32 = 80.0;
-const BUCKET_START_Y: f32 = 140.0;
-const SCREEN_BOTTOM: f32 = 168.0;
-const TARGET_SCORE: i32 = 1000;
-const WALL_LEFT: i32 = 3 * 8 + 1;
-const WALL_RIGHT: i32 = WALL_LEFT + 160 - 8 - 1;
+type InventoryIndex = usize;
+
+struct StateManager {
+    current: State,
+    previous: Option<State>,
+}
+
+impl StateManager {
+    fn new() -> Self {
+        Self {
+            current: State::Aiming,
+            previous: None,
+        }
+    }
+
+    fn current(&self) -> State {
+        self.current
+    }
+
+    fn previous(&self) -> Option<State> {
+        self.previous
+    }
+
+    fn transition_to(&mut self, new_state: State) {
+        if new_state != self.current {
+            self.previous = Some(self.current);
+        }
+        self.current = new_state;
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum State {
@@ -63,17 +85,14 @@ struct GameState<const MAX_PEGS: usize> {
     current_ball_data: Option<BallData>,
     pegs: Box<Pegs<MAX_PEGS>, InternalAllocator>,
     physics: Box<Physics<MAX_PEGS>, InternalAllocator>,
-    current_score: Option<Score>,
-    damages: score::Damage,
-    coins: score::Coins,
-    state: State,
-    last_state: Option<State>,
+    score_manager: ScoreManager,
+    state_manager: StateManager,
     background: RegularBackground,
     mult_counter: Counter,
     base_counter: Counter,
     coin_counter: Counter,
     inventory_presenter: InventoryPresenter,
-    current_inventory_presenter: usize,
+    selected_inventory_index: InventoryIndex,
     text_box: TextBox,
     launcher: Launcher,
 }
@@ -82,50 +101,28 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
         let rng = &mut RandomNumberGenerator::new();
         let pegs = Box::new_in(
-            Pegs::<MAX_PEGS>::spawn_pegs::<WALL_LEFT, WALL_RIGHT>(rng),
+            Pegs::<MAX_PEGS>::spawn_pegs::<
+                { GameConfig::WALL_LEFT },
+                { GameConfig::WALL_RIGHT },
+            >(rng),
             InternalAllocator,
         );
         let physics = Box::new_in(
             Physics::<MAX_PEGS>::new(&pegs.positions, &pegs.collidable)?,
             InternalAllocator,
         );
-        let inventory = effect::from_kinds(save.inventory());
-
-        // Get current stack address
-        // let stack_var = 0u32;
-        // let stack_addr = &stack_var as *const u32 as usize;
-        // agb::println!("Stack address: 0x{:08X}", stack_addr);
-        // agb::println!(
-        //     "Pegs address: 0x{:08X}, size: {} bytes",
-        //     pegs.as_ref() as *const _ as usize,
-        //     core::mem::size_of::<Pegs<MAX_PEGS>>()
-        // );
-        // agb::println!(
-        //     "Physics address: 0x{:08X}, size: {} bytes",
-        //     physics.as_ref() as *const _ as usize,
-        //     core::mem::size_of::<Physics<MAX_PEGS>>()
-        // );
 
         Ok(Self {
-            ball: Ball::new(vec2(num!(BALL_START_X), num!(BALL_START_Y))),
-            inventory,
-            bucket: Bucket::new(vec2(
-                num!(BUCKET_START_X),
-                num!(BUCKET_START_Y),
-            )),
+            ball: Ball::new(GameConfig::ball_start_pos()),
+            inventory: effect::from_kinds(save.inventory()),
+            bucket: Bucket::new(GameConfig::bucket_start_pos()),
             bucket_effects: vec![BucketEffect::Identity],
             current_ball_data: None,
-            launcher: Launcher::new(vec2(
-                num!(BALL_START_X),
-                num!(BALL_START_Y),
-            )),
+            launcher: Launcher::new(GameConfig::ball_start_pos()),
             pegs,
             physics,
-            current_score: None,
-            damages: 0,
-            coins: save.coins(),
-            state: State::Aiming,
-            last_state: None,
+            score_manager: ScoreManager::new(save.coins()),
+            state_manager: StateManager::new(),
             background: background::new(),
             base_counter: Counter::new(
                 vec2(num!(206), num!(125)),
@@ -143,7 +140,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 num!(8),
                 num!(16),
             )),
-            current_inventory_presenter: 0,
+            selected_inventory_index: 0,
             text_box: TextBox::new(vec2(189, 5), 46),
         })
     }
@@ -159,22 +156,21 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
     fn update_pegs(&mut self) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
-        self.physics
-            .move_from_fields::<3000, 10, WALL_LEFT, 10, WALL_RIGHT, 110, 15>(
+        let result = self.physics
+            .move_from_fields::<3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15>(
                 &mut self.pegs.positions,
                 &mut self.pegs.velocities,
                 &self.pegs.collidable,
                 &self.pegs.force_radius_squared,
-                num!(DELTA_TIME),
-            )?;
+                num!(GameConfig::DELTA_TIME),
+            );
         crate::bench::stop("PEG_UPDATE");
-
-        Ok(())
+        result
     }
 
-    fn update_bucket(&mut self) -> Result<(), Error> {
-        self.bucket.update::<WALL_LEFT, WALL_RIGHT>();
-        Ok(())
+    fn update_bucket(&mut self) {
+        self.bucket
+            .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
     }
 
     pub fn update(
@@ -184,7 +180,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input.update();
         self.text_box.update();
 
-        let new_state = match self.state {
+        let new_state = match self.state_manager.current() {
             State::Aiming => self.update_aiming(input)?,
             State::Falling => self.update_falling(input)?,
             State::InInventory => self.update_inventory(input)?,
@@ -211,10 +207,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             }
         };
 
-        if new_state != self.state {
-            self.last_state = Some(self.state);
-        }
-        self.state = new_state;
+        self.state_manager.transition_to(new_state);
 
         Ok(Scene::Game)
     }
@@ -230,7 +223,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.inventory_presenter.show(frame, &self.inventory);
         self.text_box.show(frame);
 
-        if matches!(self.state, State::Aiming) {
+        if matches!(self.state_manager.current(), State::Aiming) {
             self.launcher.show(frame);
         }
     }
@@ -242,9 +235,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.ball.reset_sprite();
 
         self.update_pegs()?;
-        self.update_bucket()?;
+        self.update_bucket();
 
-        let delta = num!(DELTA_TIME);
+        let delta = num!(GameConfig::DELTA_TIME);
 
         let is_left_pressed = input.is_pressed(Button::LEFT);
         let is_right_pressed = input.is_pressed(Button::RIGHT);
@@ -257,7 +250,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         if input.is_just_pressed(Button::A) {
             self.ball.velocity =
-                vec2(self.launcher.velocity(), num!(BALL_START_Y));
+                vec2(self.launcher.velocity(), num!(GameConfig::BALL_START_Y));
 
             return Ok(State::Falling);
         }
@@ -273,9 +266,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     }
 
     fn set_text_box_to_current_data(&mut self) {
-        self.text_box.remove();
-        if let Some(ball_data) = self.current_ball_data {
-            self.text_box.set_text(ball_data.kind().description());
+        match self.current_ball_data {
+            Some(ball_data) => {
+                self.text_box.set_text(ball_data.kind().description())
+            }
+            None => self.text_box.remove(),
         }
     }
 
@@ -285,7 +280,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     ) -> Result<State, Error> {
         if input.is_just_pressed(Button::SELECT) {
             self.set_text_box_to_current_data();
-            if let Some(last_state) = self.last_state {
+            if let Some(last_state) = self.state_manager.previous() {
                 return Ok(last_state);
             } else {
                 return Err(Error::NoLastState);
@@ -293,22 +288,22 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         if input.is_just_pressed(Button::UP)
-            && self.current_inventory_presenter > 0
+            && self.selected_inventory_index > 0
         {
-            self.current_inventory_presenter -= 1;
+            self.selected_inventory_index -= 1;
             self.text_box.set_text(
-                self.inventory[self.current_inventory_presenter]
+                self.inventory[self.selected_inventory_index]
                     .kind()
                     .description(),
             );
         }
 
         if input.is_just_pressed(Button::DOWN)
-            && self.current_inventory_presenter < self.inventory.len() - 1
+            && self.selected_inventory_index < self.inventory.len() - 1
         {
-            self.current_inventory_presenter += 1;
+            self.selected_inventory_index += 1;
             self.text_box.set_text(
-                self.inventory[self.current_inventory_presenter]
+                self.inventory[self.selected_inventory_index]
                     .kind()
                     .description(),
             );
@@ -325,16 +320,16 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     ) -> Result<State, Error> {
         self.ball.update();
         self.update_pegs()?;
-        self.update_bucket()?;
+        self.update_bucket();
 
         crate::bench::start("UPDATE_BALL_TOP");
         let (position, velocity, touched) = self.physics
-        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, WALL_LEFT, 0, WALL_RIGHT, 180>(
+        .move_and_collide::<{ ball::RADIUS }, { peg::RADIUS }, 200, { GameConfig::WALL_LEFT }, 0, { GameConfig::WALL_RIGHT }, 180>(
             self.ball.position,
             self.ball.velocity,
             &self.pegs.positions,
             &self.pegs.collidable,
-            num!(DELTA_TIME),
+            num!(GameConfig::DELTA_TIME),
             &self.bucket.walls,
         )?;
         self.ball.position = position;
@@ -344,29 +339,17 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         for &i in touched {
             self.pegs.collidable[i] = false;
 
-            let mut score = self.current_score.unwrap_or(Score::new(0, 0, 0));
-
-            score = score.apply(match self.pegs.kind[i] {
-                Kind::Blue => Score::new(1, 0, 0),
-                Kind::Red => Score::new(0, 1, 0),
-                Kind::Yellow => Score::new(0, 0, 1),
-            });
-
-            for pe in &self.inventory {
-                score = pe.passive().apply(score);
-            }
-
-            if let Some(ball_data) = &self.current_ball_data {
-                score = ball_data.active().apply(score);
-            }
-
-            self.mult_counter.set(score.mult);
-            self.base_counter.set(score.base);
-            self.coin_counter.set(self.coins + score.coins);
-            self.current_score = Some(score);
+            self.score_manager.process_peg_hit(
+                self.pegs.kind[i],
+                &self.inventory,
+                &self.current_ball_data,
+                &mut self.mult_counter,
+                &mut self.base_counter,
+                &mut self.coin_counter,
+            );
         }
 
-        if self.ball.position.y > num!(SCREEN_BOTTOM) {
+        if self.ball.position.y > num!(GameConfig::SCREEN_BOTTOM) {
             return Ok(State::Counting { is_bucketed: false });
         }
 
@@ -382,47 +365,41 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     }
 
     fn update_counting(&mut self, is_bucketed: bool) -> Result<State, Error> {
-        self.ball.position = vec2(num!(BALL_START_X), num!(BALL_START_Y));
+        self.ball.position = GameConfig::ball_start_pos();
         self.update_pegs()?;
-        self.update_bucket()?;
+        self.update_bucket();
 
-        for i in 0..MAX_PEGS {
-            if !self.pegs.collidable[i] {
-                self.pegs.showable[i] = false;
-            }
-        }
+        self.pegs
+            .collidable
+            .iter()
+            .zip(self.pegs.showable.iter_mut())
+            .for_each(|(&is_collidable, showable)| {
+                if !is_collidable {
+                    *showable = false;
+                }
+            });
 
         if is_bucketed {
-            let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
-
             agb::println!("Bucket!");
-            for e in &self.bucket_effects {
-                score = e.apply(score);
-            }
-
-            self.mult_counter.set(score.mult);
-            self.base_counter.set(score.base);
-            self.coin_counter.set(self.coins + score.coins);
-            self.current_score = Some(score);
+            self.score_manager.process_bucket_bonus(
+                &self.bucket_effects,
+                &mut self.mult_counter,
+                &mut self.base_counter,
+                &mut self.coin_counter,
+            );
         }
 
-        if let Some(score) = self.current_score {
-            let (damages, coins) = score.extract();
-            self.damages += damages;
-            self.coins += coins;
-        }
+        let (damages, coins) = self.score_manager.extract_final_score();
+        self.score_manager
+            .reset_counters(&mut self.mult_counter, &mut self.base_counter);
 
-        self.current_score = None;
-        self.mult_counter.reset();
-        self.base_counter.reset();
-
-        agb::println!("Score: {} damages, {} coins", self.damages, self.coins);
+        agb::println!("Score: {} damages, {} coins", damages, coins);
 
         Ok(State::Aiming)
     }
 
     pub fn is_winning(&self) -> bool {
-        self.damages > TARGET_SCORE
+        self.score_manager.is_winning()
     }
 }
 
