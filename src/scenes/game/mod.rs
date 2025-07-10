@@ -1,18 +1,17 @@
-use crate::error::Error;
-use crate::physics::Physics;
-use crate::save::Save;
-use crate::scenes::Scene;
-use crate::scenes::game::bucket::Bucket;
-use agb::InternalAllocator;
-use agb::display::GraphicsFrame;
-use agb::display::font::AlignmentKind;
-use agb::display::tiled::RegularBackground;
-use agb::fixnum::{num, vec2};
-use agb::input::{Button, ButtonController};
-use agb::rng::RandomNumberGenerator;
-use alloc::boxed::Box;
-use alloc::vec;
-use alloc::vec::Vec;
+use crate::{
+    error::Error,
+    physics::Physics,
+    save::Save,
+    scenes::{Scene, game::bucket::Bucket},
+};
+use agb::{
+    InternalAllocator,
+    display::{GraphicsFrame, font::AlignmentKind, tiled::RegularBackground},
+    fixnum::{num, vec2},
+    input::{Button, ButtonController},
+    rng::RandomNumberGenerator,
+};
+use alloc::{boxed::Box, vec, vec::Vec};
 use ball::Ball;
 use config::GameConfig;
 use counter::Counter;
@@ -25,16 +24,16 @@ use score::ScoreManager;
 use text_box::TextBox;
 
 mod background;
-pub mod ball;
-pub mod bucket;
+mod ball;
+mod bucket;
 mod config;
-pub mod counter;
-pub mod effect;
-pub mod inventory;
+mod counter;
+mod effect;
+mod inventory;
 mod jauge;
 mod launcher;
-pub mod peg;
-pub mod score;
+mod peg;
+mod score;
 mod text_box;
 
 #[cfg(test)]
