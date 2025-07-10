@@ -18,6 +18,7 @@ use config::GameConfig;
 use counter::Counter;
 use effect::{BallData, BucketEffect};
 use inventory::InventoryPresenter;
+use jauge::Jauge;
 use launcher::Launcher;
 use peg::Pegs;
 use score::ScoreManager;
@@ -30,6 +31,7 @@ mod config;
 pub mod counter;
 pub mod effect;
 pub mod inventory;
+mod jauge;
 mod launcher;
 pub mod peg;
 pub mod score;
@@ -95,6 +97,7 @@ struct GameState<const MAX_PEGS: usize> {
     selected_inventory_index: InventoryIndex,
     text_box: TextBox,
     launcher: Launcher,
+    jauge: Jauge<0, 50>,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
@@ -142,6 +145,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             )),
             selected_inventory_index: 0,
             text_box: TextBox::new(vec2(189, 5), 46),
+            jauge: Jauge::new(vec2(num!(184), num!(104))),
         })
     }
 
@@ -222,6 +226,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.coin_counter.show(frame);
         self.inventory_presenter.show(frame, &self.inventory);
         self.text_box.show(frame);
+        self.jauge.show(frame);
 
         if matches!(self.state_manager.current(), State::Aiming) {
             self.launcher.show(frame);
@@ -380,7 +385,6 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             });
 
         if is_bucketed {
-            agb::println!("Bucket!");
             self.score_manager.process_bucket_bonus(
                 &self.bucket_effects,
                 &mut self.mult_counter,
@@ -393,7 +397,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.score_manager
             .reset_counters(&mut self.mult_counter, &mut self.base_counter);
 
-        agb::println!("Score: {} damages, {} coins", damages, coins);
+        self.jauge.set(
+            GameConfig::TARGET_SCORE - damages,
+            0,
+            GameConfig::TARGET_SCORE,
+        );
 
         Ok(State::Aiming)
     }
