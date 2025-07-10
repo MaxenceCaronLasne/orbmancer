@@ -68,7 +68,10 @@ impl Counter {
                     self.position.y,
                 ),
                 AlignmentKind::Right => agb::fixnum::vec2(
-                    self.position.x - agb::fixnum::num!(2.0) - agb::fixnum::num!(4.0) * (digits.len() - 1 - i) as i32,
+                    self.position.x
+                        - agb::fixnum::num!(2.0)
+                        - agb::fixnum::num!(4.0)
+                            * (digits.len() - 1 - i) as i32,
                     self.position.y,
                 ),
                 _ => agb::fixnum::vec2(

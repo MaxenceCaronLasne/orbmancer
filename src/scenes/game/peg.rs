@@ -1,6 +1,6 @@
 use crate::{Coordinates, Fixed, Force};
 use agb::display::GraphicsFrame;
-use agb::display::object::Object;
+use agb::display::object::{Object, Sprite};
 use agb::fixnum::{num, vec2};
 use agb::include_aseprite;
 use agb::rng::RandomNumberGenerator;
@@ -18,6 +18,14 @@ pub enum Kind {
     Blue,
     Red,
     Yellow,
+}
+
+fn sprite_from_kind(kind: Kind) -> &'static Sprite {
+    match kind {
+        Kind::Red => sprites::RED.sprite(0),
+        Kind::Blue => sprites::BLUE.sprite(0),
+        Kind::Yellow => sprites::YELLOW.sprite(0),
+    }
 }
 
 pub struct Pegs<const N: usize> {
@@ -38,13 +46,14 @@ impl<const N: usize> Pegs<N> {
         collidable: [bool; N],
         kind: [Kind; N],
     ) -> Self {
+        let sprite =
+            core::array::from_fn(|i| Object::new(sprite_from_kind(kind[i])));
+
         Self {
             positions,
             velocities: [vec2(num!(0.0), num!(0.0)); N],
             force_radius_squared,
-            sprite: core::array::from_fn(|_| {
-                Object::new(sprites::PEG.sprite(0))
-            }),
+            sprite,
             showable,
             collidable,
             kind,

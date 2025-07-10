@@ -72,7 +72,7 @@ impl ScoreManager {
         base_counter: &mut Counter,
         coin_counter: &mut Counter,
     ) {
-        let mut score = self.current_score.unwrap_or(Score::new(0, 0, 0));
+        let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
 
         score = score.apply(match peg_kind {
             Kind::Blue => Score::new(1, 0, 0),
