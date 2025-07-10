@@ -37,12 +37,10 @@ impl Bucket {
         position: Coordinates,
     ) -> [(Coordinates, Coordinates); 2] {
         [
-            // Left wall
             (
                 vec2(position.x, position.y),
                 vec2(position.x, position.y + num!(16)),
             ),
-            // Right wall
             (
                 vec2(position.x + num!(32), position.y),
                 vec2(position.x + num!(32), position.y + num!(16)),
@@ -53,13 +51,12 @@ impl Bucket {
     pub fn update<const LEFT_WALL: i32, const RIGHT_WALL: i32>(&mut self) {
         self.position.x += self.direction * self.speed;
 
-        if self.position.x <= num!(LEFT_WALL) {
+        if self.position.x <= num!(LEFT_WALL + 3) {
             self.direction = num!(1.0);
-        } else if self.position.x >= num!(RIGHT_WALL) {
+        } else if self.position.x >= num!(RIGHT_WALL - 28) {
             self.direction = num!(-1.0);
         }
 
-        // Update walls when position changes
         self.walls = Self::calculate_walls(self.position);
     }
 
