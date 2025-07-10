@@ -58,20 +58,24 @@ impl Counter {
         }
         digits.reverse();
 
-        let start_x = match self.alignment {
-            AlignmentKind::Left => self.position.x,
-            AlignmentKind::Right => self.position.x - agb::fixnum::num!(2.0),
-            _ => self.position.x,
-        };
-
         for (i, &digit) in digits.iter().enumerate() {
             let mut sprite = agb::display::object::Object::new(
                 sprites::NUMBERS.sprite(digit),
             );
-            let digit_pos = agb::fixnum::vec2(
-                start_x + agb::fixnum::num!(4.0) * i as i32,
-                self.position.y,
-            );
+            let digit_pos = match self.alignment {
+                AlignmentKind::Left => agb::fixnum::vec2(
+                    self.position.x + agb::fixnum::num!(4.0) * i as i32,
+                    self.position.y,
+                ),
+                AlignmentKind::Right => agb::fixnum::vec2(
+                    self.position.x - agb::fixnum::num!(2.0) - agb::fixnum::num!(4.0) * (digits.len() - 1 - i) as i32,
+                    self.position.y,
+                ),
+                _ => agb::fixnum::vec2(
+                    self.position.x + agb::fixnum::num!(4.0) * i as i32,
+                    self.position.y,
+                ),
+            };
             sprite.set_pos(digit_pos.round()).show(frame);
         }
     }

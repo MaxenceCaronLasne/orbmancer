@@ -127,12 +127,12 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             state_manager: StateManager::new(),
             background: background::new(),
             base_counter: Counter::new(
-                vec2(num!(206), num!(125)),
-                AlignmentKind::Right,
-            ),
-            mult_counter: Counter::new(
                 vec2(num!(217), num!(125)),
                 AlignmentKind::Left,
+            ),
+            mult_counter: Counter::new(
+                vec2(num!(206), num!(125)),
+                AlignmentKind::Right,
             ),
             coin_counter: Counter::new(
                 vec2(num!(234), num!(145)),
