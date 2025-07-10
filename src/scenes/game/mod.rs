@@ -393,7 +393,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             );
         }
 
-        let (damages, coins) = self.score_manager.extract_final_score();
+        let (damages, _) = self.score_manager.extract_final_score();
         self.score_manager
             .reset_counters(&mut self.mult_counter, &mut self.base_counter);
 

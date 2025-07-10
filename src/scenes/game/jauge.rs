@@ -1,7 +1,7 @@
 use crate::{Coordinates, Fixed};
-use agb::display::{AffineMatrix, GraphicsFrame};
+use agb::display::GraphicsFrame;
 use agb::{
-    display::object::{AffineMatrixObject, AffineMode, Object, ObjectAffine},
+    display::object::Object,
     fixnum::{num, vec2},
     include_aseprite,
 };
