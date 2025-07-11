@@ -229,7 +229,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
     pub fn show(&mut self, frame: &mut GraphicsFrame) {
         if self.screen_shake.is_active() {
-            self.background.set_scroll_pos(self.screen_shake.offset().round());
+            self.background
+                .set_scroll_pos(self.screen_shake.offset().round());
         } else {
             self.background.set_scroll_pos((0, 0));
         }
@@ -376,18 +377,23 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         if !touched.is_empty() {
-            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
-            self.white_flash.start(GameConfig::FLASH_DURATION);
+            self.screen_shake.start(
+                GameConfig::SHAKE_DURATION,
+                GameConfig::SHAKE_INTENSITY - 2,
+            );
+            //self.white_flash.start(GameConfig::FLASH_DURATION);
         }
 
         if self.ball.position.y > num!(GameConfig::SCREEN_BOTTOM) {
-            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
+            self.screen_shake
+                .start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
             self.white_flash.start(GameConfig::FLASH_DURATION);
             return Ok(State::Counting { is_bucketed: false });
         }
 
         if self.bucket.is_in_bucket(self.ball.position) {
-            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
+            self.screen_shake
+                .start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
             self.white_flash.start(GameConfig::FLASH_DURATION);
             return Ok(State::Counting { is_bucketed: true });
         }
