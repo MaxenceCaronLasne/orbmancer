@@ -21,6 +21,7 @@ use jauge::Jauge;
 use launcher::Launcher;
 use peg::Pegs;
 use score::ScoreManager;
+use shake::{ScreenShake, WhiteFlash};
 use text_box::TextBox;
 
 mod background;
@@ -34,6 +35,7 @@ mod jauge;
 mod launcher;
 mod peg;
 mod score;
+mod shake;
 mod text_box;
 
 #[cfg(test)]
@@ -89,6 +91,7 @@ struct GameState<const MAX_PEGS: usize> {
     score_manager: ScoreManager,
     state_manager: StateManager,
     background: RegularBackground,
+    white_background: RegularBackground,
     mult_counter: Counter,
     base_counter: Counter,
     coin_counter: Counter,
@@ -97,16 +100,19 @@ struct GameState<const MAX_PEGS: usize> {
     text_box: TextBox,
     launcher: Launcher,
     jauge: Jauge<0, 50>,
+    screen_shake: ScreenShake,
+    white_flash: WhiteFlash,
+    rng: RandomNumberGenerator,
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
-        let rng = &mut RandomNumberGenerator::new();
+        let mut rng = RandomNumberGenerator::new();
         let pegs = Box::new_in(
             Pegs::<MAX_PEGS>::spawn_pegs::<
                 { GameConfig::WALL_LEFT },
                 { GameConfig::WALL_RIGHT },
-            >(rng),
+            >(&mut rng),
             InternalAllocator,
         );
         let physics = Box::new_in(
@@ -126,6 +132,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             score_manager: ScoreManager::new(save.coins()),
             state_manager: StateManager::new(),
             background: background::new(),
+            white_background: background::new_white(),
             base_counter: Counter::new(
                 vec2(num!(217), num!(125)),
                 AlignmentKind::Left,
@@ -145,6 +152,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             selected_inventory_index: 0,
             text_box: TextBox::new(vec2(189, 5), 46),
             jauge: Jauge::new(vec2(num!(184), num!(104))),
+            screen_shake: ScreenShake::inactive(),
+            white_flash: WhiteFlash::new(),
+            rng,
         })
     }
 
@@ -182,6 +192,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     ) -> Result<Scene, Error> {
         input.update();
         self.text_box.update();
+        self.screen_shake.update(&mut self.rng);
+        self.white_flash.update();
 
         let new_state = match self.state_manager.current() {
             State::Aiming => self.update_aiming(input)?,
@@ -216,19 +228,29 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     }
 
     pub fn show(&mut self, frame: &mut GraphicsFrame) {
-        self.pegs.show(frame);
-        self.ball.show(frame);
-        self.bucket.show(frame);
-        self.background.show(frame);
-        self.base_counter.show(frame);
-        self.mult_counter.show(frame);
-        self.coin_counter.show(frame);
-        self.inventory_presenter.show(frame, &self.inventory);
-        self.text_box.show(frame);
-        self.jauge.show(frame);
+        if self.screen_shake.is_active() {
+            self.background.set_scroll_pos(self.screen_shake.offset().round());
+        } else {
+            self.background.set_scroll_pos((0, 0));
+        }
 
-        if matches!(self.state_manager.current(), State::Aiming) {
-            self.launcher.show(frame);
+        if self.white_flash.is_active() {
+            self.white_background.show(frame);
+        } else {
+            self.pegs.show(frame);
+            self.ball.show(frame);
+            self.bucket.show(frame);
+            self.background.show(frame);
+            self.base_counter.show(frame);
+            self.mult_counter.show(frame);
+            self.coin_counter.show(frame);
+            self.inventory_presenter.show(frame, &self.inventory);
+            self.text_box.show(frame);
+            self.jauge.show(frame);
+
+            if matches!(self.state_manager.current(), State::Aiming) {
+                self.launcher.show(frame);
+            }
         }
     }
 
@@ -353,11 +375,20 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             );
         }
 
+        if !touched.is_empty() {
+            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
+            self.white_flash.start(GameConfig::FLASH_DURATION);
+        }
+
         if self.ball.position.y > num!(GameConfig::SCREEN_BOTTOM) {
+            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
+            self.white_flash.start(GameConfig::FLASH_DURATION);
             return Ok(State::Counting { is_bucketed: false });
         }
 
         if self.bucket.is_in_bucket(self.ball.position) {
+            self.screen_shake.start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
+            self.white_flash.start(GameConfig::FLASH_DURATION);
             return Ok(State::Counting { is_bucketed: true });
         }
 

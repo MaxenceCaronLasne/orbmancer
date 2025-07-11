@@ -13,6 +13,9 @@ impl GameConfig {
     pub const TARGET_SCORE: i32 = 1000;
     pub const WALL_LEFT: i32 = 3 * 8 + 1;
     pub const WALL_RIGHT: i32 = Self::WALL_LEFT + 160 - 8 - 1;
+    pub const SHAKE_DURATION: u32 = 10;
+    pub const SHAKE_INTENSITY: i32 = 3;
+    pub const FLASH_DURATION: u32 = 3;
 
     pub fn ball_start_pos() -> Coordinates {
         vec2(num!(Self::BALL_START_X), num!(Self::BALL_START_Y))
