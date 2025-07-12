@@ -18,6 +18,7 @@ pub enum Kind {
     Blue,
     Red,
     Yellow,
+    Green,
 }
 
 fn sprite_from_kind(kind: Kind) -> &'static Sprite {
@@ -25,6 +26,7 @@ fn sprite_from_kind(kind: Kind) -> &'static Sprite {
         Kind::Red => sprites::RED.sprite(0),
         Kind::Blue => sprites::BLUE.sprite(0),
         Kind::Yellow => sprites::YELLOW.sprite(0),
+        Kind::Green => sprites::GREEN.sprite(0),
     }
 }
 
@@ -88,7 +90,9 @@ impl<const N: usize> Pegs<N> {
             showable[i] = true;
             collidable[i] = true;
 
-            kind[i] = if rng.next_i32() > 0 {
+            kind[i] = if i == 0 {
+                Kind::Green
+            } else if rng.next_i32() > 0 {
                 Kind::Blue
             } else if rng.next_i32() > 0 {
                 Kind::Yellow

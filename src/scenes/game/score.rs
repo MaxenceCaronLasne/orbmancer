@@ -78,6 +78,7 @@ impl ScoreManager {
             Kind::Blue => Score::new(1, 0, 0),
             Kind::Red => Score::new(0, 1, 0),
             Kind::Yellow => Score::new(0, 0, 1),
+            Kind::Green => Score::new(0, 0, 0),
         });
 
         for pe in inventory {

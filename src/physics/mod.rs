@@ -300,4 +300,17 @@ impl<const N: usize> Physics<N> {
 
         Ok(())
     }
+
+    pub fn force_move(
+        &mut self,
+        index: usize,
+        at: Coordinates,
+        positions: &mut [Coordinates; N],
+    ) -> Result<(), Error> {
+        let old = positions[index];
+        positions[index] = at;
+        self.neighbors.update(index, old, at)?;
+
+        Ok(())
+    }
 }

@@ -1,4 +1,5 @@
 use crate::{
+    Coordinates, Fixed, Force,
     error::Error,
     physics::Physics,
     save::{BallKind, Save},
@@ -107,7 +108,7 @@ struct GameState<const MAX_PEGS: usize> {
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
-        let mut rng = RandomNumberGenerator::new();
+        let mut rng = RandomNumberGenerator::new_with_seed([3, 4, 5, 66]);
         let pegs = Box::new_in(
             Pegs::<MAX_PEGS>::spawn_pegs::<
                 { GameConfig::WALL_LEFT },
@@ -363,22 +364,31 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             num!(GameConfig::DELTA_TIME),
             &self.bucket.walls,
         )?;
+
         self.ball.position = position;
         self.ball.velocity = velocity;
         crate::bench::stop("UPDATE_BALL_TOP");
 
-        for &i in touched {
-            self.pegs.collidable[i] = false;
-            self.pegs.showable[i] = false;
+        let mut touched_green_pegs: Vec<usize> = Vec::new();
+
+        for &t in touched {
+            let peg_kind = self.pegs.kind[t];
+
+            self.pegs.collidable[t] = false;
+            self.pegs.showable[t] = false;
 
             self.score_manager.process_peg_hit(
-                self.pegs.kind[i],
+                self.pegs.kind[t],
                 &self.inventory,
                 &self.current_ball_data,
                 &mut self.mult_counter,
                 &mut self.base_counter,
                 &mut self.coin_counter,
             );
+
+            if matches!(peg_kind, peg::Kind::Green) {
+                touched_green_pegs.push(t);
+            }
         }
 
         if !touched.is_empty() {
@@ -386,7 +396,42 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 GameConfig::SHAKE_DURATION,
                 GameConfig::SHAKE_INTENSITY - 2,
             );
-            //self.white_flash.start(GameConfig::FLASH_DURATION);
+        }
+
+        for t in touched_green_pegs {
+            let peg_position = self.pegs.positions[t];
+
+            const NB_OF_ADDED_PEGS: usize = 3;
+
+            let mut added_pegs = 0;
+
+            for i in 0..MAX_PEGS {
+                if !self.pegs.showable[i] {
+                    self.physics.force_move(
+                        i,
+                        peg_position,
+                        &mut self.pegs.positions,
+                    )?;
+                    self.pegs.showable[i] = true;
+                    self.pegs.collidable[i] = true;
+                    let velo_x = match self.rng.next_i32() {
+                        x if x >= 0 => x % 100,
+                        x => x % -100,
+                    };
+                    let velo_y = match self.rng.next_i32() {
+                        y if y >= 0 => y % 100,
+                        y => y % -100,
+                    };
+                    self.pegs.velocities[i] =
+                        Force::new(Fixed::new(velo_x), Fixed::new(velo_y));
+
+                    added_pegs += 1;
+
+                    if added_pegs >= NB_OF_ADDED_PEGS {
+                        break;
+                    }
+                }
+            }
         }
 
         if self.ball.position.y > num!(GameConfig::SCREEN_BOTTOM) {
