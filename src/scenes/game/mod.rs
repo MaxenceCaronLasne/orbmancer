@@ -365,6 +365,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         for &i in touched {
             self.pegs.collidable[i] = false;
+            self.pegs.showable[i] = false;
 
             self.score_manager.process_peg_hit(
                 self.pegs.kind[i],
