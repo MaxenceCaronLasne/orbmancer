@@ -10,7 +10,7 @@ impl GameConfig {
     pub const BUCKET_START_X: f32 = 80.0;
     pub const BUCKET_START_Y: f32 = 140.0;
     pub const SCREEN_BOTTOM: f32 = 168.0;
-    pub const TARGET_SCORE: i32 = 1000;
+    pub const TARGET_SCORE: i32 = 100;
     pub const WALL_LEFT: i32 = 3 * 8 + 1;
     pub const WALL_RIGHT: i32 = Self::WALL_LEFT + 160 - 8 - 1;
     pub const SHAKE_DURATION: u32 = 10;

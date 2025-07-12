@@ -1,7 +1,7 @@
 use crate::error::Error;
 use heapless::Vec;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BallKind {
     Identity,
     TheDoubler,
@@ -30,8 +30,20 @@ pub struct Save {
 
 impl Save {
     pub fn new() -> Self {
+        let mut vec = Vec::new();
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::Identity);
+
         Self {
-            inventory: Vec::new(),
+            inventory: vec,
             coins: 0,
         }
     }
@@ -48,4 +60,3 @@ impl Save {
         self.coins
     }
 }
-
