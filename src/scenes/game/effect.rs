@@ -3,7 +3,7 @@ use crate::scenes::game::score::Score;
 use alloc::vec::Vec;
 use heapless::Vec as HeaplessVec;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BallData {
     kind: BallKind,
     active: ActiveEffect,
@@ -55,7 +55,7 @@ pub fn from_kinds(kinds: &HeaplessVec<BallKind, 16>) -> Vec<BallData> {
         .collect()
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PassiveEffect {
     Identity,
     #[allow(dead_code)]
@@ -74,7 +74,7 @@ impl PassiveEffect {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ActiveEffect {
     Identity,
     AddMult(i32),

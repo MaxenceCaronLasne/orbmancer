@@ -1,7 +1,7 @@
 use crate::{
     error::Error,
     physics::Physics,
-    save::Save,
+    save::{BallKind, Save},
     scenes::{Scene, game::bucket::Bucket},
 };
 use agb::{
@@ -77,7 +77,7 @@ enum State {
     Aiming,
     Falling,
     InInventory,
-    Counting { is_bucketed: bool },
+    Counting { bucketed: Option<BallData> },
 }
 
 struct GameState<const MAX_PEGS: usize> {
@@ -199,9 +199,13 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             State::Aiming => self.update_aiming(input)?,
             State::Falling => self.update_falling(input)?,
             State::InInventory => self.update_inventory(input)?,
-            State::Counting { is_bucketed } => {
+            State::Counting { bucketed } => {
                 crate::bench::log();
-                let res = self.update_counting(is_bucketed)?;
+                let res = self.update_counting(bucketed.is_some())?;
+
+                if let Some(ball_data) = bucketed {
+                    self.inventory.push(ball_data);
+                }
 
                 if self.is_winning() {
                     return Ok(Scene::Win);
@@ -389,14 +393,16 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             self.screen_shake
                 .start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
             self.white_flash.start(GameConfig::FLASH_DURATION);
-            return Ok(State::Counting { is_bucketed: false });
+            return Ok(State::Counting { bucketed: None });
         }
 
         if self.bucket.is_in_bucket(self.ball.position) {
             self.screen_shake
                 .start(GameConfig::SHAKE_DURATION, GameConfig::SHAKE_INTENSITY);
             self.white_flash.start(GameConfig::FLASH_DURATION);
-            return Ok(State::Counting { is_bucketed: true });
+            return Ok(State::Counting {
+                bucketed: self.current_ball_data,
+            });
         }
 
         if input.is_just_pressed(Button::SELECT) {
