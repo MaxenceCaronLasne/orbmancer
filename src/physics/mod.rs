@@ -251,6 +251,7 @@ impl<const N: usize> Physics<N> {
         const RIGHT_WALL: i32,
         const DOWN_WALL: i32,
         const PARTIAL: usize,
+        const PEG_RADIUS: i32,
     >(
         &mut self,
         positions: &mut [Coordinates; N],
@@ -298,6 +299,81 @@ impl<const N: usize> Physics<N> {
             }
         }
 
+        self.resolve_peg_to_peg_collisions::<PEG_RADIUS>(positions, velocities, collidable)?;
+
+        for i in 0..N {
+            if !collidable[i] {
+                continue;
+            }
+
+            let old_position = positions[i];
+            let new_pos = grid::clamp_position_to_grid(positions[i]);
+            
+            if new_pos != old_position {
+                positions[i] = new_pos;
+                self.neighbors.update(i, old_position, new_pos)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn resolve_peg_to_peg_collisions<const PEG_RADIUS: i32>(
+        &mut self,
+        positions: &mut [Coordinates; N],
+        velocities: &mut [Force; N],
+        collidable: &[bool; N],
+    ) -> Result<(), Error> {
+        let collision_distance = Fixed::new(PEG_RADIUS * 2);
+        let collision_distance_squared = collision_distance * collision_distance;
+        
+        let mut position_updates = Vec::new();
+        
+        for i in 0..N {
+            if !collidable[i] {
+                continue;
+            }
+            
+            let neighbors = self.neighbors.get_neighbors(positions[i], 1)?;
+            
+            for &j in neighbors {
+                let j = j as usize;
+                if j <= i || !collidable[j] {
+                    continue;
+                }
+                
+                let distance_vector = positions[i] - positions[j];
+                let distance_squared = distance_vector.magnitude_squared();
+                
+                if distance_squared < collision_distance_squared && distance_squared > num!(0.001) {
+                    let distance = distance_squared.sqrt();
+                    let normal = distance_vector / distance;
+                    let overlap = collision_distance - distance;
+                    
+                    let separation = normal * overlap * num!(0.5);
+                    position_updates.push((i, positions[i] + separation));
+                    position_updates.push((j, positions[j] - separation));
+                    
+                    let relative_velocity = velocities[i] - velocities[j];
+                    let velocity_along_normal = relative_velocity.dot(normal);
+                    
+                    if velocity_along_normal < num!(0) {
+                        let impulse = normal * velocity_along_normal * num!(BOUNCE_DAMPING);
+                        velocities[i] -= impulse;
+                        velocities[j] += impulse;
+                    }
+                }
+            }
+        }
+        
+        for (index, new_position) in position_updates {
+            let old_position = positions[index];
+            positions[index] = new_position;
+            if old_position != new_position {
+                self.neighbors.update(index, old_position, new_position)?;
+            }
+        }
+        
         Ok(())
     }
 

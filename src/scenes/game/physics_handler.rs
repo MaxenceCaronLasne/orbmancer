@@ -12,7 +12,7 @@ impl PhysicsHandler {
     ) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
         let result = physics.move_from_fields::<
-            3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15
+            3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15, { peg::RADIUS }
         >(
             &mut pegs.positions,
             &mut pegs.velocities,
