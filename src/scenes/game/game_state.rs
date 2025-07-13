@@ -168,8 +168,19 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         if InputHandler::is_fire_pressed(input) {
-            self.ball.velocity =
-                vec2(self.launcher.velocity(), num!(GameConfig::BALL_START_Y));
+            self.launcher.start_charging();
+        }
+
+        if InputHandler::is_fire_held(input) {
+            self.launcher.charge_power(delta);
+        }
+
+        if InputHandler::is_fire_released(input) {
+            let power = self.launcher.stop_charging();
+            self.ball.velocity = vec2(
+                self.launcher.velocity() * power,
+                num!(GameConfig::BALL_START_Y) * power
+            );
             return Ok(State::Falling);
         }
 

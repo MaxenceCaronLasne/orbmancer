@@ -8,6 +8,9 @@ use agb::{
 
 const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
+const MIN_POWER: f32 = 0.2;
+const MAX_POWER: f32 = 3.0;
+const POWER_CHARGE_RATE: f32 = 2.8;
 
 include_aseprite!(
     mod sprites,
@@ -19,6 +22,8 @@ pub struct Launcher {
     velocity: Fixed,
     sprite: ObjectAffine,
     angle: Fixed,
+    power_charge: Fixed,
+    is_charging: bool,
 }
 
 impl Launcher {
@@ -35,11 +40,40 @@ impl Launcher {
                 AffineMode::Affine,
             ),
             angle: Self::angle(num!(0)),
+            power_charge: num!(MIN_POWER),
+            is_charging: false,
         }
     }
 
     pub fn velocity(&self) -> Fixed {
         self.velocity
+    }
+
+    pub fn start_charging(&mut self) {
+        self.is_charging = true;
+        self.power_charge = num!(MIN_POWER);
+    }
+
+    pub fn charge_power(&mut self, delta: Fixed) {
+        if self.is_charging {
+            self.power_charge += num!(POWER_CHARGE_RATE) * delta;
+            self.power_charge = self.power_charge.clamp(num!(MIN_POWER), num!(MAX_POWER));
+        }
+    }
+
+    pub fn get_launch_power(&self) -> Fixed {
+        self.power_charge
+    }
+
+    pub fn stop_charging(&mut self) -> Fixed {
+        self.is_charging = false;
+        let power = self.power_charge;
+        self.power_charge = num!(MIN_POWER);
+        power
+    }
+
+    pub fn is_charging(&self) -> bool {
+        self.is_charging
     }
 
     pub fn turn_left(&mut self, delta: Fixed) {

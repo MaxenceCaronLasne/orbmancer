@@ -20,6 +20,14 @@ impl InputHandler {
         input.is_just_pressed(Button::A)
     }
 
+    pub fn is_fire_held(input: &ButtonController) -> bool {
+        input.is_pressed(Button::A)
+    }
+
+    pub fn is_fire_released(input: &ButtonController) -> bool {
+        input.is_just_released(Button::A)
+    }
+
     pub fn is_inventory_pressed(input: &ButtonController) -> bool {
         input.is_just_pressed(Button::SELECT)
     }
