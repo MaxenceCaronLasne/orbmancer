@@ -25,6 +25,7 @@ use agb::{
     input::ButtonController,
     rng::RandomNumberGenerator,
 };
+use const_random::const_random;
 use alloc::{boxed::Box, vec, vec::Vec};
 
 type InventoryIndex = usize;
@@ -64,7 +65,12 @@ pub struct GameState<const MAX_PEGS: usize> {
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
     pub fn new(save: &Save) -> Result<Self, Error> {
-        let mut rng = RandomNumberGenerator::new_with_seed([3, 4, 5, 66]);
+        let mut rng = RandomNumberGenerator::new_with_seed([
+            const_random!(u32),
+            const_random!(u32),
+            const_random!(u32),
+            const_random!(u32),
+        ]);
         let pegs = Box::new_in(
             Pegs::<MAX_PEGS>::spawn_pegs::<
                 { GameConfig::WALL_LEFT },

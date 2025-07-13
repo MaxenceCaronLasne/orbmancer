@@ -9,6 +9,7 @@ edition = "2024"
 [dependencies]
 agb = "0.22.2"
 heapless = "0.8"
+const-random = "0.1"
 
 [features]
 default = []
