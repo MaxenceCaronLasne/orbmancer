@@ -9,8 +9,12 @@ impl PhysicsHandler {
     pub fn update_pegs<const MAX_PEGS: usize>(
         physics: &mut Physics<MAX_PEGS>,
         pegs: &mut Pegs<MAX_PEGS>,
+        rng: &mut agb::rng::RandomNumberGenerator,
     ) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
+        
+        Self::update_green_peg_generation(pegs, physics, rng)?;
+        
         let result = physics.move_from_fields::<
             3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15
         >(
@@ -47,18 +51,19 @@ impl PhysicsHandler {
         Ok((result.0, result.1, result.2.to_vec()))
     }
 
-    pub fn spawn_pegs_from_green<const MAX_PEGS: usize>(
+    pub fn spawn_single_peg_from_green<const MAX_PEGS: usize>(
         pegs: &mut Pegs<MAX_PEGS>,
         physics: &mut Physics<MAX_PEGS>,
         spawn_position: Coordinates,
         rng: &mut RandomNumberGenerator,
-    ) -> Result<(), Error> {
-        const NB_OF_ADDED_PEGS: usize = 3;
-        let mut added_pegs = 0;
-
+    ) -> Result<bool, Error> {
         for i in 0..MAX_PEGS {
             if !pegs.showable[i] {
-                physics.force_move(i, spawn_position, &mut pegs.positions)?;
+                let offset_x = (rng.next_i32() % 10) - 5;
+                let offset_y = (rng.next_i32() % 10) - 5;
+                let offset_position = spawn_position + Force::new(Fixed::new(offset_x), Fixed::new(offset_y));
+                
+                physics.force_move(i, offset_position, &mut pegs.positions)?;
                 pegs.showable[i] = true;
                 pegs.collidable[i] = true;
                 
@@ -72,12 +77,47 @@ impl PhysicsHandler {
                 };
                 pegs.velocities[i] = Force::new(Fixed::new(velo_x), Fixed::new(velo_y));
 
-                added_pegs += 1;
-                if added_pegs >= NB_OF_ADDED_PEGS {
-                    break;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn update_green_peg_generation<const MAX_PEGS: usize>(
+        pegs: &mut Pegs<MAX_PEGS>,
+        physics: &mut Physics<MAX_PEGS>,
+        rng: &mut RandomNumberGenerator,
+    ) -> Result<(), Error> {
+        const GENERATION_INTERVAL: u32 = 10;
+        
+        let mut spawns_needed = Vec::new();
+        
+        for i in 0..MAX_PEGS {
+            if let Some(timer) = &mut pegs.generation_timer[i] {
+                *timer += 1;
+                
+                if *timer >= GENERATION_INTERVAL && pegs.pending_generations[i] > 0 {
+                    if let Some(spawn_position) = pegs.generation_spawn_position[i] {
+                        spawns_needed.push((i, spawn_position));
+                    }
                 }
             }
         }
+        
+        for (i, spawn_position) in spawns_needed {
+            if Self::spawn_single_peg_from_green(pegs, physics, spawn_position, rng)? {
+                pegs.pending_generations[i] -= 1;
+                if let Some(timer) = &mut pegs.generation_timer[i] {
+                    *timer = 0;
+                }
+                
+                if pegs.pending_generations[i] == 0 {
+                    pegs.generation_timer[i] = None;
+                    pegs.generation_spawn_position[i] = None;
+                }
+            }
+        }
+        
         Ok(())
     }
 

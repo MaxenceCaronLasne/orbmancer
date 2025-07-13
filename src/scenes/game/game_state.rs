@@ -25,8 +25,8 @@ use agb::{
     input::ButtonController,
     rng::RandomNumberGenerator,
 };
-use const_random::const_random;
 use alloc::{boxed::Box, vec, vec::Vec};
+use const_random::const_random;
 
 type InventoryIndex = usize;
 
@@ -151,7 +151,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input: &ButtonController,
     ) -> Result<State, Error> {
         self.ball.reset_sprite();
-        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        PhysicsHandler::update_pegs(
+            &mut self.physics,
+            &mut self.pegs,
+            &mut self.rng,
+        )?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -219,7 +223,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input: &ButtonController,
     ) -> Result<State, Error> {
         self.ball.update();
-        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        PhysicsHandler::update_pegs(
+            &mut self.physics,
+            &mut self.pegs,
+            &mut self.rng,
+        )?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -261,7 +269,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         bucketed_ball: Option<BallData>,
     ) -> Result<State, Error> {
         self.ball.position = GameConfig::ball_start_pos();
-        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        PhysicsHandler::update_pegs(
+            &mut self.physics,
+            &mut self.pegs,
+            &mut self.rng,
+        )?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -363,13 +375,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         for t in touched_green_pegs {
-            let peg_position = self.pegs.positions[t];
-            PhysicsHandler::spawn_pegs_from_green(
-                &mut self.pegs,
-                &mut self.physics,
-                peg_position,
-                &mut self.rng,
-            )?;
+            self.pegs.generation_timer[t] = Some(0);
+            self.pegs.pending_generations[t] = 10;
+            self.pegs.generation_spawn_position[t] = Some(self.pegs.positions[t]);
         }
 
         Ok(())
@@ -381,4 +389,3 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.white_flash.start(GameConfig::FLASH_DURATION);
     }
 }
-
