@@ -1,9 +1,33 @@
-use crate::{error::Error, physics::Physics, Fixed, Force, Coordinates};
+use crate::{error::Error, physics::{Physics, PhysicsConfig}, Fixed, Force, Coordinates};
 use agb::{fixnum::num, rng::RandomNumberGenerator};
 use alloc::vec::Vec;
 use super::{ball, config::GameConfig, peg::{self, Pegs}};
 
 pub struct PhysicsHandler;
+
+const PEG_CONFIG: PhysicsConfig = PhysicsConfig {
+    left_wall: GameConfig::WALL_LEFT,
+    up_wall: 10,
+    right_wall: GameConfig::WALL_RIGHT,
+    down_wall: 130,
+    moving_radius: peg::RADIUS,
+    static_radius: peg::RADIUS,
+    gravity: 0, // Pegs don't use gravity
+    repulsion_strength: 3000,
+    object_radius: 4,
+};
+
+const BALL_CONFIG: PhysicsConfig = PhysicsConfig {
+    left_wall: GameConfig::WALL_LEFT,
+    up_wall: 0,
+    right_wall: GameConfig::WALL_RIGHT,
+    down_wall: 180,
+    moving_radius: ball::RADIUS,
+    static_radius: peg::RADIUS,
+    gravity: 200,
+    repulsion_strength: 0, // Ball doesn't use repulsion
+    object_radius: 1,
+};
 
 impl PhysicsHandler {
     pub fn update_pegs<const MAX_PEGS: usize>(
@@ -11,14 +35,13 @@ impl PhysicsHandler {
         pegs: &mut Pegs<MAX_PEGS>,
     ) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
-        let result = physics.move_from_fields::<
-            3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 130, 15, { peg::RADIUS }
-        >(
+        let result = physics.move_from_fields::<15>(
             &mut pegs.positions,
             &mut pegs.velocities,
             &pegs.collidable,
             &pegs.force_radius_squared,
             num!(GameConfig::DELTA_TIME),
+            &PEG_CONFIG,
         );
         crate::bench::stop("PEG_UPDATE");
         result
@@ -32,16 +55,14 @@ impl PhysicsHandler {
         bucket_walls: &[(Coordinates, Coordinates); 2],
     ) -> Result<(Coordinates, crate::Force, Vec<usize>), Error> {
         crate::bench::start("UPDATE_BALL_TOP");
-        let result = physics.move_and_collide::<
-            { ball::RADIUS }, { peg::RADIUS }, 200, 
-            { GameConfig::WALL_LEFT }, 0, { GameConfig::WALL_RIGHT }, 180
-        >(
+        let result = physics.move_and_collide(
             ball_position,
             ball_velocity,
             &pegs.positions,
             &pegs.collidable,
             num!(GameConfig::DELTA_TIME),
             bucket_walls,
+            &BALL_CONFIG,
         )?;
         crate::bench::stop("UPDATE_BALL_TOP");
         Ok((result.0, result.1, result.2.to_vec()))

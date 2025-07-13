@@ -7,7 +7,7 @@
 #![allow(unused_imports)]
 
 use crate::Fixed;
-use crate::physics::Physics;
+use crate::physics::{Physics, PhysicsConfig};
 use crate::scenes::game::peg::{FORCE_RADII, Kind};
 use agb::Gba;
 use agb::fixnum::{num, vec2};
@@ -59,6 +59,18 @@ pub fn test_physics_performance(gba: &mut Gba) {
     crate::bench::start("PHYSICS_INIT");
     let mut physics = Physics::<MAX_PEGS>::new(&positions, &collidable)
         .expect("Physics init failed");
+    
+    let test_config = PhysicsConfig {
+        left_wall: 10,
+        up_wall: 10,
+        right_wall: 150,
+        down_wall: 110,
+        moving_radius: 4,
+        static_radius: 4,
+        gravity: 0,
+        repulsion_strength: 3000,
+        object_radius: 4,
+    };
     crate::bench::stop("PHYSICS_INIT");
 
     let simulation_frames = 100;
@@ -69,12 +81,13 @@ pub fn test_physics_performance(gba: &mut Gba) {
         crate::bench::start("PHYSICS_FRAME");
 
         physics
-            .move_from_fields::<3000, 10, 10, 10, 150, 110, 15>(
+            .move_from_fields::<15>(
                 &mut positions,
                 &mut velocities,
                 &collidable,
                 &force_radius_squared,
                 delta_time,
+                &test_config,
             )
             .expect("Physics frame failed");
 
@@ -120,7 +133,7 @@ pub fn test_physics_collision_accuracy(gba: &mut Gba) {
 
     for _step in 0..10 {
         physics
-            .move_from_fields::<3000, 10, 10, 10, 150, 110, 15>(
+            .move_from_fields::<15>(
                 &mut positions,
                 &mut velocities,
                 &collidable,
