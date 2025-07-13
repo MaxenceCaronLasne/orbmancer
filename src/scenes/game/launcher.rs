@@ -10,7 +10,7 @@ const MAX_INPUT_VELOCITY: f32 = 100.0;
 const VELOCITY_CHANGE_RATE: f32 = 120.0;
 const MIN_POWER: f32 = 0.2;
 const MAX_POWER: f32 = 3.0;
-const POWER_CHARGE_RATE: f32 = 2.8;
+const POWER_CHARGE_RATE: f32 = 3.0;
 
 include_aseprite!(
     mod sprites,
@@ -57,7 +57,8 @@ impl Launcher {
     pub fn charge_power(&mut self, delta: Fixed) {
         if self.is_charging {
             self.power_charge += num!(POWER_CHARGE_RATE) * delta;
-            self.power_charge = self.power_charge.clamp(num!(MIN_POWER), num!(MAX_POWER));
+            self.power_charge =
+                self.power_charge.clamp(num!(MIN_POWER), num!(MAX_POWER));
         }
     }
 
