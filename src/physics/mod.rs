@@ -36,20 +36,59 @@ impl<const N: usize> Physics<N> {
         mut velocity: Force,
         radius: Fixed,
     ) -> (Coordinates, Force) {
+        const ESCAPE_FORCE: i32 = 15;
+        
+        let mut hit_x_wall = false;
+        let mut hit_y_wall = false;
+        
         if position.x < num!(LEFT_WALL) + radius {
             position.x = num!(LEFT_WALL) + radius;
             velocity.x = -velocity.x * num!(WALL_BOUNCE_DAMPING);
+            velocity.x += num!(ESCAPE_FORCE); // Push away from left wall
+            hit_x_wall = true;
         } else if position.x > num!(RIGHT_WALL) - radius {
             position.x = num!(RIGHT_WALL) - radius;
             velocity.x = -velocity.x * num!(WALL_BOUNCE_DAMPING);
+            velocity.x -= num!(ESCAPE_FORCE); // Push away from right wall
+            hit_x_wall = true;
         }
 
         if position.y < num!(UP_WALL) + radius {
             position.y = num!(UP_WALL) + radius;
             velocity.y = -velocity.y * num!(WALL_BOUNCE_DAMPING);
+            velocity.y += num!(ESCAPE_FORCE); // Push away from top wall
+            hit_y_wall = true;
         } else if position.y > num!(DOWN_WALL) - radius {
             position.y = num!(DOWN_WALL) - radius;
             velocity.y = -velocity.y * num!(WALL_BOUNCE_DAMPING);
+            velocity.y -= num!(ESCAPE_FORCE); // Push away from bottom wall
+            hit_y_wall = true;
+        }
+        
+        // Corner escape: if hit both walls, add diagonal escape toward center
+        if hit_x_wall && hit_y_wall {
+            let center_x = num!((LEFT_WALL + RIGHT_WALL) / 2);
+            let center_y = num!((UP_WALL + DOWN_WALL) / 2);
+            
+            if position.x < center_x {
+                velocity.x += num!(ESCAPE_FORCE);
+            } else {
+                velocity.x -= num!(ESCAPE_FORCE);
+            }
+            
+            if position.y < center_y {
+                velocity.y += num!(ESCAPE_FORCE);
+            } else {
+                velocity.y -= num!(ESCAPE_FORCE);
+            }
+        }
+        
+        // Reduce wall sliding by damping parallel component more when hitting walls
+        if hit_x_wall {
+            velocity.y *= num!(0.8); // Reduce sliding along X walls
+        }
+        if hit_y_wall {
+            velocity.x *= num!(0.8); // Reduce sliding along Y walls
         }
 
         (position, velocity)
@@ -231,9 +270,11 @@ impl<const N: usize> Physics<N> {
         index: usize,
         positions: &mut [Coordinates; N],
         velocity: &mut [Force; N],
+        frame_counter: usize,
     ) {
         velocity[index] *= num!(0.98);
 
+        let old_velocity = velocity[index];
         (positions[index], velocity[index]) =
             Self::move_and_collide_with_walls::<
                 LEFT_WALL,
@@ -241,6 +282,41 @@ impl<const N: usize> Physics<N> {
                 RIGHT_WALL,
                 DOWN_WALL,
             >(positions[index], velocity[index], num!(4));
+
+        if velocity[index] != old_velocity {
+            Self::apply_minimum_bounce_velocity(&mut velocity[index], index, frame_counter);
+        }
+    }
+
+    fn apply_minimum_bounce_velocity(
+        velocity: &mut Force,
+        index: usize,
+        frame_counter: usize,
+    ) {
+        const MIN_BOUNCE_SPEED_SQUARED: i32 = 625; // 25^2, avoid sqrt
+        const MIN_VELOCITY: i32 = 25;
+        const RANDOM_RANGE: i32 = 5; // Reduced from 10
+        
+        let speed_squared = velocity.magnitude_squared();
+        
+        if speed_squared < num!(MIN_BOUNCE_SPEED_SQUARED) && speed_squared > num!(0) {
+            // Simple approach: boost component-wise instead of normalizing
+            if velocity.x.abs() < num!(MIN_VELOCITY / 2) {
+                velocity.x = if velocity.x >= num!(0) { num!(MIN_VELOCITY / 2) } else { num!(-MIN_VELOCITY / 2) };
+            }
+            if velocity.y.abs() < num!(MIN_VELOCITY / 2) {
+                velocity.y = if velocity.y >= num!(0) { num!(MIN_VELOCITY / 2) } else { num!(-MIN_VELOCITY / 2) };
+            }
+        }
+        
+        // Simplified randomness - only apply occasionally to reduce cost
+        if (frame_counter + index) % 4 == 0 {
+            let rand_x = ((index * 31 + frame_counter * 17) % 10) as i32 - 5;
+            let rand_y = ((index * 37 + frame_counter * 23) % 10) as i32 - 5;
+            
+            velocity.x += Fixed::new(rand_x);
+            velocity.y += Fixed::new(rand_y);
+        }
     }
 
     pub fn move_from_fields<
@@ -287,7 +363,7 @@ impl<const N: usize> Physics<N> {
                 UP_WALL,
                 RIGHT_WALL,
                 DOWN_WALL,
-            >(i, positions, velocities);
+            >(i, positions, velocities, self.frame_counter);
 
             let new_pos =
                 grid::clamp_position_to_grid(position + velocity * delta);

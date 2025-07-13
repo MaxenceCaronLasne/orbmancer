@@ -12,7 +12,7 @@ impl PhysicsHandler {
     ) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
         let result = physics.move_from_fields::<
-            3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15, { peg::RADIUS }
+            3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 130, 15, { peg::RADIUS }
         >(
             &mut pegs.positions,
             &mut pegs.velocities,
@@ -55,14 +55,10 @@ impl PhysicsHandler {
     ) -> Result<bool, Error> {
         for i in 0..MAX_PEGS {
             if !pegs.showable[i] {
-                let offset_x = (rng.next_i32() % 10) - 5;
-                let offset_y = (rng.next_i32() % 10) - 5;
-                let offset_position = spawn_position + Force::new(Fixed::new(offset_x), Fixed::new(offset_y));
-                
-                physics.force_move(i, offset_position, &mut pegs.positions)?;
+                physics.force_move(i, spawn_position, &mut pegs.positions)?;
                 pegs.showable[i] = true;
                 pegs.collidable[i] = true;
-                
+
                 let velo_x = match rng.next_i32() {
                     x if x >= 0 => x % 100,
                     x => x % -100,
