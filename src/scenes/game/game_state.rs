@@ -9,6 +9,7 @@ use super::{
     jauge::Jauge,
     launcher::Launcher,
     peg::Pegs,
+    peg_generator::PegGenerator,
     physics_handler::PhysicsHandler,
     score::ScoreManager,
     shake::{ScreenShake, WhiteFlash},
@@ -37,6 +38,7 @@ pub struct GameState<const MAX_PEGS: usize> {
     bucket_effects: Vec<BucketEffect>,
     selected_inventory_index: InventoryIndex,
     rng: RandomNumberGenerator,
+    peg_generators: Vec<PegGenerator>,
 
     // Core systems
     physics: Box<Physics<MAX_PEGS>, InternalAllocator>,
@@ -89,6 +91,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             bucket_effects: vec![BucketEffect::Identity],
             selected_inventory_index: 0,
             rng,
+            peg_generators: Vec::new(),
             physics,
             pegs,
             score_manager: ScoreManager::new(save.coins()),
@@ -151,11 +154,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input: &ButtonController,
     ) -> Result<State, Error> {
         self.ball.reset_sprite();
-        PhysicsHandler::update_pegs(
-            &mut self.physics,
-            &mut self.pegs,
-            &mut self.rng,
-        )?;
+        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -223,11 +223,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         input: &ButtonController,
     ) -> Result<State, Error> {
         self.ball.update();
-        PhysicsHandler::update_pegs(
-            &mut self.physics,
-            &mut self.pegs,
-            &mut self.rng,
-        )?;
+        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -269,11 +266,8 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         bucketed_ball: Option<BallData>,
     ) -> Result<State, Error> {
         self.ball.position = GameConfig::ball_start_pos();
-        PhysicsHandler::update_pegs(
-            &mut self.physics,
-            &mut self.pegs,
-            &mut self.rng,
-        )?;
+        PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
+        self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
 
@@ -375,11 +369,28 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         }
 
         for t in touched_green_pegs {
-            self.pegs.generation_timer[t] = Some(0);
-            self.pegs.pending_generations[t] = 10;
-            self.pegs.generation_spawn_position[t] = Some(self.pegs.positions[t]);
+            let peg_position = self.pegs.positions[t];
+            self.peg_generators
+                .push(PegGenerator::new(10, 10, peg_position));
         }
 
+        Ok(())
+    }
+
+    fn update_peg_generation(&mut self) -> Result<(), Error> {
+        for generator in &mut self.peg_generators {
+            if generator.update() {
+                PhysicsHandler::spawn_single_peg_from_green(
+                    &mut self.pegs,
+                    &mut self.physics,
+                    generator.position(),
+                    &mut self.rng,
+                )?;
+            }
+        }
+
+        self.peg_generators
+            .retain(|generator| !generator.is_finished());
         Ok(())
     }
 

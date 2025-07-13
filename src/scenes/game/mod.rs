@@ -13,6 +13,7 @@ mod inventory;
 mod jauge;
 mod launcher;
 mod peg;
+mod peg_generator;
 mod physics_handler;
 mod score;
 mod shake;

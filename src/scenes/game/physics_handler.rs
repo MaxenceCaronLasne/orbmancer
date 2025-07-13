@@ -9,12 +9,8 @@ impl PhysicsHandler {
     pub fn update_pegs<const MAX_PEGS: usize>(
         physics: &mut Physics<MAX_PEGS>,
         pegs: &mut Pegs<MAX_PEGS>,
-        rng: &mut agb::rng::RandomNumberGenerator,
     ) -> Result<(), Error> {
         crate::bench::start("PEG_UPDATE");
-        
-        Self::update_green_peg_generation(pegs, physics, rng)?;
-        
         let result = physics.move_from_fields::<
             3000, 10, { GameConfig::WALL_LEFT }, 10, { GameConfig::WALL_RIGHT }, 110, 15
         >(
@@ -83,43 +79,6 @@ impl PhysicsHandler {
         Ok(false)
     }
 
-    pub fn update_green_peg_generation<const MAX_PEGS: usize>(
-        pegs: &mut Pegs<MAX_PEGS>,
-        physics: &mut Physics<MAX_PEGS>,
-        rng: &mut RandomNumberGenerator,
-    ) -> Result<(), Error> {
-        const GENERATION_INTERVAL: u32 = 10;
-        
-        let mut spawns_needed = Vec::new();
-        
-        for i in 0..MAX_PEGS {
-            if let Some(timer) = &mut pegs.generation_timer[i] {
-                *timer += 1;
-                
-                if *timer >= GENERATION_INTERVAL && pegs.pending_generations[i] > 0 {
-                    if let Some(spawn_position) = pegs.generation_spawn_position[i] {
-                        spawns_needed.push((i, spawn_position));
-                    }
-                }
-            }
-        }
-        
-        for (i, spawn_position) in spawns_needed {
-            if Self::spawn_single_peg_from_green(pegs, physics, spawn_position, rng)? {
-                pegs.pending_generations[i] -= 1;
-                if let Some(timer) = &mut pegs.generation_timer[i] {
-                    *timer = 0;
-                }
-                
-                if pegs.pending_generations[i] == 0 {
-                    pegs.generation_timer[i] = None;
-                    pegs.generation_spawn_position[i] = None;
-                }
-            }
-        }
-        
-        Ok(())
-    }
 
     pub fn hide_non_collidable_pegs<const MAX_PEGS: usize>(pegs: &mut Pegs<MAX_PEGS>) {
         pegs.collidable

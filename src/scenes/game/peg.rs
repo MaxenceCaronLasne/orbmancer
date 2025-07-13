@@ -38,9 +38,6 @@ pub struct Pegs<const N: usize> {
     pub showable: [bool; N],
     pub collidable: [bool; N],
     pub kind: [Kind; N],
-    pub generation_timer: [Option<u32>; N],
-    pub pending_generations: [u8; N],
-    pub generation_spawn_position: [Option<Coordinates>; N],
 }
 
 impl<const N: usize> Pegs<N> {
@@ -62,9 +59,6 @@ impl<const N: usize> Pegs<N> {
             showable,
             collidable,
             kind,
-            generation_timer: [None; N],
-            pending_generations: [0; N],
-            generation_spawn_position: [None; N],
         }
     }
 
