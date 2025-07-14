@@ -66,6 +66,10 @@ impl Launcher {
         self.power_charge
     }
 
+    pub fn get_power_for_jauge(&self) -> Fixed {
+        self.power_charge
+    }
+
     pub fn stop_charging(&mut self) -> Fixed {
         self.is_charging = false;
         let power = self.power_charge;

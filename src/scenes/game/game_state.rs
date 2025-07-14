@@ -58,6 +58,7 @@ pub struct GameState<const MAX_PEGS: usize> {
     inventory_presenter: InventoryPresenter,
     text_box: TextBox,
     jauge: Jauge<0, 50>,
+    power_jauge: Jauge<0, 50>,
 
     // Rendering and effects
     background: Background,
@@ -117,6 +118,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             )),
             text_box: TextBox::new(vec2(189, 5), 46),
             jauge: Jauge::new(vec2(num!(184), num!(104))),
+            power_jauge: Jauge::new(GameConfig::power_gauge_pos()),
             background: Background::new(),
             screen_shake: ScreenShake::inactive(),
             white_flash: WhiteFlash::new(),
@@ -174,6 +176,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         if InputHandler::is_fire_held(input) {
             self.launcher.charge_power(delta);
         }
+
+        // Update power gauge
+        let power_value = self.launcher.get_power_for_jauge();
+        self.power_jauge.set((power_value * num!(100)).floor(), 20, 300);
 
         if InputHandler::is_fire_released(input) {
             let power = self.launcher.stop_charging();
@@ -344,6 +350,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         if matches!(self.state_manager.current(), State::Aiming) {
             self.launcher.show(frame);
+            self.power_jauge.show(frame);
         }
     }
 

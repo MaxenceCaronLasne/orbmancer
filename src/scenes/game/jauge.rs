@@ -10,9 +10,9 @@ const PADDING: i32 = 3;
 
 include_aseprite!(
     mod sprites,
-    "assets/jauge.aseprite",
-    "assets/jauge_foreground_left.aseprite",
-    "assets/jauge_foreground_right.aseprite",
+    "assets/jauge_mask.aseprite",
+    "assets/jauge_background.aseprite",
+    "assets/jauge_foreground.aseprite",
 );
 
 pub struct Jauge<const MIN: i32, const MAX: i32> {
@@ -20,6 +20,7 @@ pub struct Jauge<const MIN: i32, const MAX: i32> {
     value: i32,
     foreground_sprite: (Object, Object),
     mask_sprite: (Object, Object),
+    background_sprite: (Object, Object),
 }
 
 impl<const MIN: i32, const MAX: i32> Jauge<MIN, MAX> {
@@ -28,12 +29,16 @@ impl<const MIN: i32, const MAX: i32> Jauge<MIN, MAX> {
             position,
             value: MAX,
             foreground_sprite: (
-                Object::new(sprites::LEFT.sprite(0)),
-                Object::new(sprites::RIGHT.sprite(0)),
+                Object::new(sprites::FRONTLEFT.sprite(0)),
+                Object::new(sprites::FRONTRIGHT.sprite(0)),
             ),
             mask_sprite: (
-                Object::new(sprites::BAR.sprite(0)),
-                Object::new(sprites::BAR.sprite(0)),
+                Object::new(sprites::MASK.sprite(0)),
+                Object::new(sprites::MASK.sprite(0)),
+            ),
+            background_sprite: (
+                Object::new(sprites::BACKLEFT.sprite(0)),
+                Object::new(sprites::BACKRIGHT.sprite(0)),
             ),
         }
     }
@@ -66,8 +71,22 @@ impl<const MIN: i32, const MAX: i32> Jauge<MIN, MAX> {
         self.mask_sprite.1.set_pos(pos + vec2(SPRL, 0)).show(frame);
     }
 
+    fn show_background(&mut self, frame: &mut GraphicsFrame) {
+        const SPRL: i32 = 32;
+
+        self.background_sprite
+            .0
+            .set_pos(self.position.round())
+            .show(frame);
+        self.background_sprite
+            .1
+            .set_pos(self.position.round() + vec2(SPRL, 0))
+            .show(frame);
+    }
+
     pub fn show(&mut self, frame: &mut GraphicsFrame) {
         self.show_foreground(frame);
         self.show_mask(frame);
+        self.show_background(frame);
     }
 }

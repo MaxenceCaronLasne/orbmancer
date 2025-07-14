@@ -1,13 +1,21 @@
-use crate::{error::Error, physics::{Physics, PhysicsConfig}, Fixed, Force, Coordinates};
+use super::{
+    ball,
+    config::GameConfig,
+    peg::{self, Pegs},
+};
+use crate::{
+    Coordinates, Fixed, Force,
+    error::Error,
+    physics::{Physics, PhysicsConfig},
+};
 use agb::{fixnum::num, rng::RandomNumberGenerator};
 use alloc::vec::Vec;
-use super::{ball, config::GameConfig, peg::{self, Pegs}};
 
 pub struct PhysicsHandler;
 
 const PEG_CONFIG: PhysicsConfig = PhysicsConfig {
     left_wall: GameConfig::WALL_LEFT,
-    up_wall: 10,
+    up_wall: 20,
     right_wall: GameConfig::WALL_RIGHT,
     down_wall: 130,
     moving_radius: peg::RADIUS,
@@ -88,7 +96,8 @@ impl PhysicsHandler {
                     y if y >= 0 => y % 100,
                     y => y % -100,
                 };
-                pegs.velocities[i] = Force::new(Fixed::new(velo_x), Fixed::new(velo_y));
+                pegs.velocities[i] =
+                    Force::new(Fixed::new(velo_x), Fixed::new(velo_y));
 
                 return Ok(true);
             }
@@ -96,8 +105,9 @@ impl PhysicsHandler {
         Ok(false)
     }
 
-
-    pub fn hide_non_collidable_pegs<const MAX_PEGS: usize>(pegs: &mut Pegs<MAX_PEGS>) {
+    pub fn hide_non_collidable_pegs<const MAX_PEGS: usize>(
+        pegs: &mut Pegs<MAX_PEGS>,
+    ) {
         pegs.collidable
             .iter()
             .zip(pegs.showable.iter_mut())
