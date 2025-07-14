@@ -90,7 +90,7 @@ impl<const N: usize> Pegs<N> {
             showable[i] = true;
             collidable[i] = true;
 
-            kind[i] = if i == 0 {
+            kind[i] = if i == 0 || i == 1 {
                 Kind::Green
             } else if rng.next_i32() > 0 {
                 Kind::Blue
