@@ -6,11 +6,7 @@ use agb::{
     include_aseprite,
 };
 
-const MAX_INPUT_VELOCITY: f32 = 100.0;
-const VELOCITY_CHANGE_RATE: f32 = 120.0;
-const MIN_POWER: f32 = 0.2;
-const MAX_POWER: f32 = 3.0;
-const POWER_CHARGE_RATE: f32 = 3.0;
+use super::config::GameConfig;
 
 include_aseprite!(
     mod sprites,
@@ -40,7 +36,7 @@ impl Launcher {
                 AffineMode::Affine,
             ),
             angle: Self::angle(num!(0)),
-            power_charge: num!(MIN_POWER),
+            power_charge: num!(GameConfig::LAUNCHER_MIN_POWER),
             is_charging: false,
         }
     }
@@ -51,19 +47,18 @@ impl Launcher {
 
     pub fn start_charging(&mut self) {
         self.is_charging = true;
-        self.power_charge = num!(MIN_POWER);
+        self.power_charge = num!(GameConfig::LAUNCHER_MIN_POWER);
     }
 
     pub fn charge_power(&mut self, delta: Fixed) {
         if self.is_charging {
-            self.power_charge += num!(POWER_CHARGE_RATE) * delta;
-            self.power_charge =
-                self.power_charge.clamp(num!(MIN_POWER), num!(MAX_POWER));
+            self.power_charge +=
+                num!(GameConfig::LAUNCHER_POWER_CHARGE_RATE) * delta;
+            self.power_charge = self.power_charge.clamp(
+                num!(GameConfig::LAUNCHER_MIN_POWER),
+                num!(GameConfig::LAUNCHER_MAX_POWER),
+            );
         }
-    }
-
-    pub fn get_launch_power(&self) -> Fixed {
-        self.power_charge
     }
 
     pub fn get_power_for_jauge(&self) -> Fixed {
@@ -73,27 +68,27 @@ impl Launcher {
     pub fn stop_charging(&mut self) -> Fixed {
         self.is_charging = false;
         let power = self.power_charge;
-        self.power_charge = num!(MIN_POWER);
+        self.power_charge = num!(GameConfig::LAUNCHER_MIN_POWER);
         power
     }
 
-    pub fn is_charging(&self) -> bool {
-        self.is_charging
-    }
-
     pub fn turn_left(&mut self, delta: Fixed) {
-        self.velocity -= num!(VELOCITY_CHANGE_RATE) * delta;
-        self.velocity = self
-            .velocity
-            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
+        self.velocity -=
+            num!(GameConfig::LAUNCHER_VELOCITY_CHANGE_RATE) * delta;
+        self.velocity = self.velocity.clamp(
+            num!(-GameConfig::LAUNCHER_MAX_INPUT_VELOCITY),
+            num!(GameConfig::LAUNCHER_MAX_INPUT_VELOCITY),
+        );
         self.angle = Self::angle(self.velocity);
     }
 
     pub fn turn_right(&mut self, delta: Fixed) {
-        self.velocity += num!(VELOCITY_CHANGE_RATE) * delta;
-        self.velocity = self
-            .velocity
-            .clamp(num!(-MAX_INPUT_VELOCITY), num!(MAX_INPUT_VELOCITY));
+        self.velocity +=
+            num!(GameConfig::LAUNCHER_VELOCITY_CHANGE_RATE) * delta;
+        self.velocity = self.velocity.clamp(
+            num!(-GameConfig::LAUNCHER_MAX_INPUT_VELOCITY),
+            num!(GameConfig::LAUNCHER_MAX_INPUT_VELOCITY),
+        );
         self.angle = Self::angle(self.velocity);
     }
 

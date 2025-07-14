@@ -6,7 +6,7 @@ use agb::{
     include_aseprite,
 };
 
-const PADDING: i32 = 3;
+use super::config::GameConfig;
 
 include_aseprite!(
     mod sprites,
@@ -50,7 +50,7 @@ impl<const MIN: i32, const MAX: i32> Jauge<MIN, MAX> {
     }
 
     fn show_foreground(&mut self, frame: &mut GraphicsFrame) {
-        const SPRL: i32 = 32;
+        const SPRL: i32 = GameConfig::JAUGE_SPRITE_WIDTH;
 
         self.foreground_sprite
             .0
@@ -64,15 +64,16 @@ impl<const MIN: i32, const MAX: i32> Jauge<MIN, MAX> {
     }
 
     fn show_mask(&mut self, frame: &mut GraphicsFrame) {
-        const SPRL: i32 = 32;
-        let pos = self.position.round() + vec2(self.value + PADDING, 0);
+        const SPRL: i32 = GameConfig::JAUGE_SPRITE_WIDTH;
+        let pos = self.position.round()
+            + vec2(self.value + GameConfig::JAUGE_PADDING, 0);
 
         self.mask_sprite.0.set_pos(pos).show(frame);
         self.mask_sprite.1.set_pos(pos + vec2(SPRL, 0)).show(frame);
     }
 
     fn show_background(&mut self, frame: &mut GraphicsFrame) {
-        const SPRL: i32 = 32;
+        const SPRL: i32 = GameConfig::JAUGE_SPRITE_WIDTH;
 
         self.background_sprite
             .0

@@ -1,8 +1,4 @@
-use super::{
-    ball,
-    config::GameConfig,
-    peg::{self, Pegs},
-};
+use super::{config::GameConfig, peg::Pegs};
 use crate::{
     Coordinates, Fixed, Force,
     error::Error,
@@ -15,26 +11,26 @@ pub struct PhysicsHandler;
 
 const PEG_CONFIG: PhysicsConfig = PhysicsConfig {
     left_wall: GameConfig::WALL_LEFT,
-    up_wall: 20,
+    up_wall: GameConfig::PHYSICS_UPPER_WALL,
     right_wall: GameConfig::WALL_RIGHT,
-    down_wall: 130,
-    moving_radius: peg::RADIUS,
-    static_radius: peg::RADIUS,
+    down_wall: GameConfig::PHYSICS_LOWER_WALL_PEGS,
+    moving_radius: GameConfig::PEG_RADIUS,
+    static_radius: GameConfig::PEG_RADIUS,
     gravity: 0, // Pegs don't use gravity
-    repulsion_strength: 3000,
-    object_radius: 4,
+    repulsion_strength: GameConfig::PHYSICS_REPULSION_STRENGTH,
+    object_radius: GameConfig::PHYSICS_OBJECT_RADIUS_PEG,
 };
 
 const BALL_CONFIG: PhysicsConfig = PhysicsConfig {
     left_wall: GameConfig::WALL_LEFT,
     up_wall: 0,
     right_wall: GameConfig::WALL_RIGHT,
-    down_wall: 180,
-    moving_radius: ball::RADIUS,
-    static_radius: peg::RADIUS,
-    gravity: 200,
+    down_wall: GameConfig::PHYSICS_LOWER_WALL_BALL,
+    moving_radius: GameConfig::BALL_RADIUS,
+    static_radius: GameConfig::PEG_RADIUS,
+    gravity: GameConfig::PHYSICS_GRAVITY,
     repulsion_strength: 0, // Ball doesn't use repulsion
-    object_radius: 1,
+    object_radius: GameConfig::PHYSICS_OBJECT_RADIUS_BALL,
 };
 
 impl PhysicsHandler {
@@ -89,12 +85,12 @@ impl PhysicsHandler {
                 pegs.collidable[i] = true;
 
                 let velo_x = match rng.next_i32() {
-                    x if x >= 0 => x % 100,
-                    x => x % -100,
+                    x if x >= 0 => x % GameConfig::PEG_SPAWN_VELOCITY_RANGE,
+                    x => x % -GameConfig::PEG_SPAWN_VELOCITY_RANGE,
                 };
                 let velo_y = match rng.next_i32() {
-                    y if y >= 0 => y % 100,
-                    y => y % -100,
+                    y if y >= 0 => y % GameConfig::PEG_SPAWN_VELOCITY_RANGE,
+                    y => y % -GameConfig::PEG_SPAWN_VELOCITY_RANGE,
                 };
                 pegs.velocities[i] =
                     Force::new(Fixed::new(velo_x), Fixed::new(velo_y));

@@ -26,10 +26,6 @@ impl StateManager {
         self.current
     }
 
-    pub fn previous(&self) -> Option<State> {
-        self.previous
-    }
-
     pub fn transition_to(&mut self, new_state: State) {
         if new_state != self.current {
             self.previous = Some(self.current);
@@ -41,4 +37,3 @@ impl StateManager {
         self.previous.ok_or(Error::NoLastState)
     }
 }
-

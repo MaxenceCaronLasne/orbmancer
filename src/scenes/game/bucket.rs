@@ -6,12 +6,12 @@ use agb::{
     include_aseprite,
 };
 
+use super::config::GameConfig;
+
 include_aseprite!(
     mod sprites,
     "assets/bucket.aseprite"
 );
-
-const SPEED: f32 = 1.0;
 
 pub struct Bucket {
     pub position: Coordinates,
@@ -28,7 +28,7 @@ impl Bucket {
             position,
             sprite: Object::new(sprites::BUCKET.sprite(0)),
             direction: num!(1.0),
-            speed: num!(SPEED),
+            speed: num!(GameConfig::BUCKET_SPEED),
             walls,
         }
     }
@@ -39,11 +39,14 @@ impl Bucket {
         [
             (
                 vec2(position.x, position.y),
-                vec2(position.x, position.y + num!(16)),
+                vec2(position.x, position.y + num!(GameConfig::BUCKET_HEIGHT)),
             ),
             (
-                vec2(position.x + num!(32), position.y),
-                vec2(position.x + num!(32), position.y + num!(16)),
+                vec2(position.x + num!(GameConfig::BUCKET_WIDTH), position.y),
+                vec2(
+                    position.x + num!(GameConfig::BUCKET_WIDTH),
+                    position.y + num!(GameConfig::BUCKET_HEIGHT),
+                ),
             ),
         ]
     }
@@ -51,9 +54,13 @@ impl Bucket {
     pub fn update<const LEFT_WALL: i32, const RIGHT_WALL: i32>(&mut self) {
         self.position.x += self.direction * self.speed;
 
-        if self.position.x <= num!(LEFT_WALL + 3) {
+        if self.position.x
+            <= num!(LEFT_WALL + GameConfig::BUCKET_WALL_OFFSET_LEFT)
+        {
             self.direction = num!(1.0);
-        } else if self.position.x >= num!(RIGHT_WALL - 28) {
+        } else if self.position.x
+            >= num!(RIGHT_WALL - GameConfig::BUCKET_WALL_OFFSET_RIGHT)
+        {
             self.direction = num!(-1.0);
         }
 
@@ -66,8 +73,8 @@ impl Bucket {
 
     pub fn is_in_bucket(&self, position: Coordinates) -> bool {
         self.position.x < position.x
-            && position.x < self.position.x + 32
+            && position.x < self.position.x + GameConfig::BUCKET_WIDTH
             && self.position.y < position.y
-            && position.y < self.position.y + 16
+            && position.y < self.position.y + GameConfig::BUCKET_HEIGHT
     }
 }

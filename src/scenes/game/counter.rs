@@ -4,6 +4,8 @@ use agb::display::font::AlignmentKind;
 use agb::{fixnum::vec2, include_aseprite};
 use alloc::vec::Vec;
 
+use super::config::GameConfig;
+
 include_aseprite!(
     mod sprites,
     "assets/numbers.aseprite"
@@ -43,7 +45,13 @@ impl Counter {
                     sprite.set_pos(self.position.round()).show(frame)
                 }
                 AlignmentKind::Right => sprite
-                    .set_pos(self.position.round() - vec2(2, 0))
+                    .set_pos(
+                        self.position.round()
+                            - vec2(
+                                GameConfig::COUNTER_POSITION_OFFSET as i32,
+                                0,
+                            ),
+                    )
                     .show(frame),
                 _ => {}
             }
@@ -64,18 +72,24 @@ impl Counter {
             );
             let digit_pos = match self.alignment {
                 AlignmentKind::Left => agb::fixnum::vec2(
-                    self.position.x + agb::fixnum::num!(4.0) * i as i32,
+                    self.position.x
+                        + agb::fixnum::num!(GameConfig::COUNTER_DIGIT_SPACING)
+                            * i as i32,
                     self.position.y,
                 ),
                 AlignmentKind::Right => agb::fixnum::vec2(
                     self.position.x
-                        - agb::fixnum::num!(2.0)
-                        - agb::fixnum::num!(4.0)
+                        - agb::fixnum::num!(
+                            GameConfig::COUNTER_POSITION_OFFSET
+                        )
+                        - agb::fixnum::num!(GameConfig::COUNTER_DIGIT_SPACING)
                             * (digits.len() - 1 - i) as i32,
                     self.position.y,
                 ),
                 _ => agb::fixnum::vec2(
-                    self.position.x + agb::fixnum::num!(4.0) * i as i32,
+                    self.position.x
+                        + agb::fixnum::num!(GameConfig::COUNTER_DIGIT_SPACING)
+                            * i as i32,
                     self.position.y,
                 ),
             };

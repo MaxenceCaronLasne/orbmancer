@@ -59,7 +59,7 @@ pub fn test_physics_performance(gba: &mut Gba) {
     crate::bench::start("PHYSICS_INIT");
     let mut physics = Physics::<MAX_PEGS>::new(&positions, &collidable)
         .expect("Physics init failed");
-    
+
     let test_config = PhysicsConfig {
         left_wall: 10,
         up_wall: 10,
@@ -149,4 +149,3 @@ pub fn test_physics_collision_accuracy(gba: &mut Gba) {
 
     crate::bench::log();
 }
-

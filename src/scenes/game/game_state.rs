@@ -179,13 +179,14 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         // Update power gauge
         let power_value = self.launcher.get_power_for_jauge();
-        self.power_jauge.set((power_value * num!(100)).floor(), 20, 300);
+        self.power_jauge
+            .set((power_value * num!(100)).floor(), 20, 300);
 
         if InputHandler::is_fire_released(input) {
             let power = self.launcher.stop_charging();
             self.ball.velocity = vec2(
                 self.launcher.velocity() * power,
-                num!(GameConfig::BALL_START_Y) * power
+                num!(GameConfig::BALL_START_Y) * power,
             );
             return Ok(State::Falling);
         }

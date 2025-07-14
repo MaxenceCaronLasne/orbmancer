@@ -58,4 +58,3 @@ pub enum InventoryNavigation {
     Down,
     None,
 }
-

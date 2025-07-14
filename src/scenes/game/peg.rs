@@ -5,8 +5,7 @@ use agb::fixnum::{num, vec2};
 use agb::include_aseprite;
 use agb::rng::RandomNumberGenerator;
 
-pub const RADIUS: i32 = 3;
-pub const FORCE_RADII: [f32; 4] = [5.0, 10.0, 15.0, 20.0];
+use super::config::GameConfig;
 
 include_aseprite!(
     mod sprites,
@@ -65,9 +64,9 @@ impl<const N: usize> Pegs<N> {
     pub fn spawn_pegs<const WALL_LEFT: i32, const WALL_RIGHT: i32>(
         rng: &mut RandomNumberGenerator,
     ) -> Pegs<N> {
-        let peg_count = 50;
-        let screen_height = 120;
-        let min_y = 30;
+        let peg_count = GameConfig::MAX_PEGS_TO_SPAWN;
+        let screen_height = GameConfig::PEG_SPAWN_SCREEN_HEIGHT;
+        let min_y = GameConfig::PEG_SPAWN_MIN_Y;
 
         let mut positions = [vec2(num!(0), num!(0)); N];
         let mut force_radius_squared = [num!(20); N];
@@ -80,10 +79,12 @@ impl<const N: usize> Pegs<N> {
                 WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
             let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
 
-            let force_radius_index =
-                (rng.next_i32().abs() % FORCE_RADII.len() as i32) as usize;
-            let force_radius =
-                Fixed::new(FORCE_RADII[force_radius_index] as i32);
+            let force_radius_index = (rng.next_i32().abs()
+                % GameConfig::PEG_FORCE_RADII.len() as i32)
+                as usize;
+            let force_radius = Fixed::new(
+                GameConfig::PEG_FORCE_RADII[force_radius_index] as i32,
+            );
 
             positions[i] = vec2(Fixed::new(x), Fixed::new(y));
             force_radius_squared[i] = force_radius * force_radius;

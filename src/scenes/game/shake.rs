@@ -31,10 +31,12 @@ impl ScreenShake {
     pub fn update(&mut self, rng: &mut RandomNumberGenerator) {
         if self.duration > 0 {
             self.duration -= 1;
-            
-            let x_offset = rng.next_i32().abs() % (self.intensity * 2 + 1) - self.intensity;
-            let y_offset = rng.next_i32().abs() % (self.intensity * 2 + 1) - self.intensity;
-            
+
+            let x_offset = rng.next_i32().abs() % (self.intensity * 2 + 1)
+                - self.intensity;
+            let y_offset = rng.next_i32().abs() % (self.intensity * 2 + 1)
+                - self.intensity;
+
             self.offset = vec2(x_offset.into(), y_offset.into());
         } else {
             self.offset = vec2(num!(0), num!(0));
@@ -75,3 +77,4 @@ impl WhiteFlash {
         self.duration = duration;
     }
 }
+

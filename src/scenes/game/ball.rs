@@ -7,7 +7,7 @@ use agb::{
     include_aseprite,
 };
 
-pub const RADIUS: i32 = 4;
+use super::config::GameConfig;
 
 include_aseprite!(
     mod sprites,
@@ -42,7 +42,7 @@ impl Ball {
     }
 
     pub fn update(&mut self) {
-        self.sprite_rotation += num!(0.005);
+        self.sprite_rotation += num!(GameConfig::BALL_ROTATION_SPEED);
     }
 
     pub fn show(self: &mut Ball, frame: &mut GraphicsFrame) {

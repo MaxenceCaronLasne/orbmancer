@@ -24,7 +24,7 @@ pub type Force = Vector2D<Fixed>;
 #[agb::entry]
 fn entry(gba: agb::Gba) -> ! {
     agb::println!("Starting game...");
-    let mut save = save::Save::new();
+    let save = save::Save::new();
 
     match scenes::main(gba, save) {
         Ok(()) => {
