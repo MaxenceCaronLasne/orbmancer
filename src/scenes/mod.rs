@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::save::Save;
 
+mod ecs;
 pub mod game;
 
 pub enum Scene {
@@ -14,7 +15,7 @@ pub fn main(mut gba: agb::Gba, mut save: Save) -> Result<(), Error> {
 
     loop {
         state = match state {
-            Scene::Game => game::main(&mut gba, &mut save)?,
+            Scene::Game => ecs::main(&mut gba, &mut save)?,
             Scene::GameOver => {
                 agb::println!("Game Over!");
                 loop {

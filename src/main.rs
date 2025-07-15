@@ -12,6 +12,7 @@ extern crate alloc;
 mod bench;
 mod error;
 mod physics;
+mod position;
 mod save;
 mod scenes;
 mod text;
@@ -19,6 +20,8 @@ mod text;
 pub type Fixed = FixedNum<8>;
 pub type Coordinates = Vector2D<Fixed>;
 pub type Force = Vector2D<Fixed>;
+
+const DELTA: f32 = 1.0 / 60.0;
 
 #[cfg(not(test))]
 #[agb::entry]
