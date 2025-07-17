@@ -10,7 +10,6 @@ edition = "2024"
 agb = "0.22.2"
 heapless = "0.8"
 const-random = "0.1"
-bevy = { version = "0.16.1", default-features = false }
 
 [features]
 default = []
@@ -28,4 +27,3 @@ path = "src/main.rs"
 opt-level = 3
 lto = "fat"
 debug = false
-
