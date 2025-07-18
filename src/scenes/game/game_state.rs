@@ -345,7 +345,12 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.base_counter.show(frame);
         self.mult_counter.show(frame);
         self.coin_counter.show(frame);
-        self.inventory_presenter.show(frame, &self.inventory);
+        self.inventory_presenter.show(
+            frame,
+            &self.inventory,
+            self.selected_inventory_index,
+            matches!(self.state_manager.current(), State::InInventory),
+        );
         self.text_box.show(frame);
         self.jauge.show(frame);
 
