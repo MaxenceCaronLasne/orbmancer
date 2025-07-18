@@ -3,10 +3,12 @@ use agb::display::tiled::{
     RegularBackground, RegularBackgroundSize, TileFormat, VRAM_MANAGER,
 };
 use agb::display::{GraphicsFrame, Priority};
+use agb::fixnum::vec2;
 use agb::include_background_gfx;
 
 include_background_gfx!(
     mod background,
+    "000000",
     GAME => deduplicate "assets/background.aseprite",
     WHITE => deduplicate "assets/white_background.aseprite"
 );

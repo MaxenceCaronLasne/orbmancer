@@ -30,7 +30,10 @@
 *** KILL +1 Animation
 ** TODO Music
 ** DONE Screen shake
-** TODO Fix: Shake artifact on background
+** DONE Fix: Shake artifact on background
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-18 Fri 17:52]
+:END:
 
 * TODO Drop Scene
 ** TODO UI Mockup
