@@ -5,6 +5,7 @@ use heapless::Vec;
 pub enum BallKind {
     Identity,
     TheDoubler,
+    SmallGrabber,
 }
 
 impl BallKind {
@@ -12,6 +13,7 @@ impl BallKind {
         match self {
             BallKind::Identity => 0,
             BallKind::TheDoubler => 0,
+            BallKind::SmallGrabber => 0,
         }
     }
 
@@ -19,6 +21,7 @@ impl BallKind {
         match self {
             BallKind::Identity => "just a ball...",
             BallKind::TheDoubler => "The Doubler",
+            BallKind::SmallGrabber => "The Small Grabber",
         }
     }
 }
@@ -31,6 +34,7 @@ pub struct Save {
 impl Save {
     pub fn new() -> Self {
         let mut vec = Vec::new();
+        let _ = vec.push(BallKind::TheDoubler);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
@@ -39,8 +43,7 @@ impl Save {
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::Identity);
+        let _ = vec.push(BallKind::SmallGrabber);
 
         Self {
             inventory: vec,

@@ -71,10 +71,11 @@ impl ScoreManager {
         mult_counter: &mut Counter,
         base_counter: &mut Counter,
         coin_counter: &mut Counter,
-    ) {
-        let mut score = self.current_score.unwrap_or(Score::new(0, 1, 0));
+    ) -> Score {
+        let old_score = self.current_score.unwrap_or(Score::new(0, 1, 0));
+        let mut cur_score = Score::new(0, 0, 0);
 
-        score = score.apply(match peg_kind {
+        cur_score = cur_score.apply(match peg_kind {
             Kind::Blue => Score::new(1, 0, 0),
             Kind::Red => Score::new(0, 1, 0),
             Kind::Yellow => Score::new(0, 0, 1),
@@ -82,17 +83,21 @@ impl ScoreManager {
         });
 
         for pe in inventory {
-            score = pe.passive().apply(score);
+            cur_score = pe.passive().apply(cur_score);
         }
 
         if let Some(ball_data) = current_ball_data {
-            score = ball_data.active().apply(score);
+            cur_score = ball_data.active().apply(cur_score);
         }
 
-        mult_counter.set(score.mult);
-        base_counter.set(score.base);
-        coin_counter.set(self.coins + score.coins);
-        self.current_score = Some(score);
+        let new_score = old_score.apply(cur_score);
+
+        mult_counter.set(new_score.mult);
+        base_counter.set(new_score.base);
+        coin_counter.set(self.coins + new_score.coins);
+        self.current_score = Some(new_score);
+
+        cur_score
     }
 
     pub fn process_bucket_bonus(

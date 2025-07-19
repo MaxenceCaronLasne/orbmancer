@@ -32,6 +32,11 @@ impl BallData {
                 active: ActiveEffect::AddMult(1),
                 passive: PassiveEffect::Identity,
             },
+            BallKind::SmallGrabber => Self {
+                kind,
+                active: ActiveEffect::AddBase(10),
+                passive: PassiveEffect::Identity,
+            },
         }
     }
 

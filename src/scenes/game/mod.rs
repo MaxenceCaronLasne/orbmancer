@@ -15,6 +15,7 @@ mod launcher;
 mod peg;
 mod peg_generator;
 mod physics_handler;
+mod points_pres;
 mod score;
 mod shake;
 mod state;
