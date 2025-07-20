@@ -3,6 +3,8 @@ use crate::scenes::game::score::Score;
 use alloc::vec::Vec;
 use heapless::Vec as HeaplessVec;
 
+use super::peg::Kind;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BallData {
     kind: BallKind,
@@ -88,11 +90,12 @@ pub enum ActiveEffect {
 }
 
 impl ActiveEffect {
-    pub fn apply(self, score: Score) -> Score {
-        match self {
-            ActiveEffect::Identity => score,
-            ActiveEffect::AddMult(m) => score.add(0, m, 0),
-            ActiveEffect::AddBase(b) => score.add(b, 0, 0),
+    pub fn apply(self, score: Score, kind: Kind) -> Score {
+        match (self, kind) {
+            (ActiveEffect::Identity, _) => score,
+            (ActiveEffect::AddMult(m), Kind::Red) => score.add(0, m, 0),
+            (ActiveEffect::AddBase(b), Kind::Blue) => score.add(b, 0, 0),
+            (_, _) => score,
         }
     }
 }

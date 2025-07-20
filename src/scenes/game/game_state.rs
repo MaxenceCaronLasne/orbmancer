@@ -395,8 +395,11 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 &mut self.coin_counter,
             );
 
-            self.point_pres
-                .push(PointsPres::new(self.pegs.positions[t], score));
+            if let Some(pp) =
+                PointsPres::new(self.pegs.positions[t], score, peg_kind)
+            {
+                self.point_pres.push(pp);
+            }
 
             if matches!(peg_kind, super::peg::Kind::Green) {
                 touched_green_pegs.push(t);

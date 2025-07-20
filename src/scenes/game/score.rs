@@ -87,7 +87,7 @@ impl ScoreManager {
         }
 
         if let Some(ball_data) = current_ball_data {
-            cur_score = ball_data.active().apply(cur_score);
+            cur_score = ball_data.active().apply(cur_score, peg_kind);
         }
 
         let new_score = old_score.apply(cur_score);
