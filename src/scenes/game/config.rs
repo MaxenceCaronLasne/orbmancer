@@ -6,7 +6,6 @@ pub struct GameConfig;
 impl GameConfig {
     // Core Game Settings
     pub const DELTA_TIME: f32 = 1.0 / 60.0;
-    pub const TARGET_SCORE: i32 = 1000;
 
     // Screen Boundaries
     pub const SCREEN_BOTTOM: f32 = 168.0;

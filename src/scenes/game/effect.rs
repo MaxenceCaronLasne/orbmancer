@@ -3,7 +3,7 @@ use crate::scenes::game::score::Score;
 use alloc::vec::Vec;
 use heapless::Vec as HeaplessVec;
 
-use super::peg::Kind;
+use crate::peg::Kind;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BallData {

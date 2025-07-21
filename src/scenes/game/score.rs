@@ -1,7 +1,7 @@
+use crate::peg::Kind;
 use crate::scenes::game::config::GameConfig;
 use crate::scenes::game::counter::Counter;
 use crate::scenes::game::effect::{BallData, BucketEffect};
-use crate::scenes::game::peg::Kind;
 
 pub type Component = i32;
 pub type Damage = i32;
@@ -49,18 +49,24 @@ impl Score {
 }
 
 pub struct ScoreManager {
+    target_score: i32,
     current_score: Option<Score>,
     damages: Damage,
     coins: Coins,
 }
 
 impl ScoreManager {
-    pub fn new(coins: Coins) -> Self {
+    pub fn new(target_score: i32, coins: Coins) -> Self {
         Self {
+            target_score,
             current_score: None,
             damages: 0,
             coins,
         }
+    }
+
+    pub fn target_score(&self) -> i32 {
+        self.target_score
     }
 
     pub fn process_peg_hit(
@@ -132,7 +138,7 @@ impl ScoreManager {
     }
 
     pub fn is_winning(&self) -> bool {
-        self.damages > GameConfig::TARGET_SCORE
+        self.damages > self.target_score
     }
 
     pub fn reset_counters(

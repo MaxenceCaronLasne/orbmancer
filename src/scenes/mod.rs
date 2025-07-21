@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::level::Level;
 use crate::save::Save;
 
 mod game;
@@ -14,7 +15,9 @@ pub fn main(mut gba: agb::Gba, mut save: Save) -> Result<(), Error> {
 
     loop {
         state = match state {
-            Scene::Game => game::main(&mut gba, &mut save)?,
+            Scene::Game => {
+                game::main(&mut gba, &mut save, Level::new_test_level())?
+            }
             Scene::GameOver => {
                 agb::println!("Game Over!");
                 loop {

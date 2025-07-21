@@ -18,7 +18,8 @@ use super::{
     text_box::TextBox,
 };
 use crate::{
-    error::Error, physics::Physics, save::Save, scenes::game::bucket::Bucket,
+    error::Error, level::Level, physics::Physics, save::Save,
+    scenes::game::bucket::Bucket,
 };
 use agb::{
     InternalAllocator,
@@ -69,7 +70,7 @@ pub struct GameState<const MAX_PEGS: usize> {
 }
 
 impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
-    pub fn new(save: &Save) -> Result<Self, Error> {
+    pub fn new(save: &Save, level: Level) -> Result<Self, Error> {
         let mut rng = RandomNumberGenerator::new_with_seed([
             const_random!(u32),
             const_random!(u32),
@@ -80,7 +81,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             Pegs::<MAX_PEGS>::spawn_pegs::<
                 { GameConfig::WALL_LEFT },
                 { GameConfig::WALL_RIGHT },
-            >(&mut rng),
+            >(&mut rng, &level),
             InternalAllocator,
         );
         let physics = Box::new_in(
@@ -97,7 +98,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             peg_generators: Vec::new(),
             physics,
             pegs,
-            score_manager: ScoreManager::new(save.coins()),
+            score_manager: ScoreManager::new(
+                level.target_score(),
+                save.coins(),
+            ),
             state_manager: StateManager::new(),
             ball: Ball::new(GameConfig::ball_start_pos()),
             bucket: Bucket::new(GameConfig::bucket_start_pos()),
@@ -312,9 +316,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             .reset_counters(&mut self.mult_counter, &mut self.base_counter);
 
         self.jauge.set(
-            GameConfig::TARGET_SCORE - damages,
+            self.score_manager.target_score() - damages,
             0,
-            GameConfig::TARGET_SCORE,
+            self.score_manager.target_score(),
         );
 
         Ok(State::Aiming)
@@ -401,7 +405,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
                 self.point_pres.push(pp);
             }
 
-            if matches!(peg_kind, super::peg::Kind::Green) {
+            if matches!(peg_kind, crate::peg::Kind::Green) {
                 touched_green_pegs.push(t);
             }
         }

@@ -1,3 +1,4 @@
+use crate::level::Level;
 use crate::{error::Error, save::Save, scenes::Scene};
 use agb::input::ButtonController;
 
@@ -69,12 +70,16 @@ fn update<const MAX_PEGS: usize>(
     Ok(Scene::Game)
 }
 
-pub fn main(gba: &mut agb::Gba, save: &mut Save) -> Result<Scene, Error> {
+pub fn main(
+    gba: &mut agb::Gba,
+    save: &mut Save,
+    level: Level,
+) -> Result<Scene, Error> {
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
     let mut timers = gba.timers.timers();
 
-    let mut game_state = GameState::<50>::new(save)?;
+    let mut game_state = GameState::<50>::new(save, level)?;
     game_state.pop_ball()?;
 
     crate::bench::init(&mut timers);

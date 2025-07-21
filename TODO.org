@@ -34,6 +34,7 @@
 :LOGBOOK:
 - State "DONE"       from "TODO"       [2025-07-18 Fri 17:52]
 :END:
+** TODO Fix: NeighborNotFound error
 
 * TODO Drop Scene
 ** TODO UI Mockup

@@ -11,6 +11,8 @@ extern crate alloc;
 
 mod bench;
 mod error;
+mod level;
+mod peg;
 mod physics;
 mod save;
 mod scenes;

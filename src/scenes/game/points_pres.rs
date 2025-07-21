@@ -1,5 +1,5 @@
-use super::peg::Kind;
 use super::score::Score;
+use crate::peg::Kind;
 use agb::{
     display::{
         GraphicsFrame,

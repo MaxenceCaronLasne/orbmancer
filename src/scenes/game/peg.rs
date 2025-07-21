@@ -1,4 +1,4 @@
-use crate::{Coordinates, Fixed, Force};
+use crate::{Coordinates, Fixed, Force, level::Level, peg::Kind};
 use agb::display::GraphicsFrame;
 use agb::display::object::{Object, Sprite};
 use agb::fixnum::{num, vec2};
@@ -12,18 +12,10 @@ include_aseprite!(
     "assets/peg.aseprite"
 );
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Kind {
-    Blue,
-    Red,
-    Yellow,
-    Green,
-}
-
 fn sprite_from_kind(kind: Kind) -> &'static Sprite {
     match kind {
-        Kind::Red => sprites::RED.sprite(0),
         Kind::Blue => sprites::BLUE.sprite(0),
+        Kind::Red => sprites::RED.sprite(0),
         Kind::Yellow => sprites::YELLOW.sprite(0),
         Kind::Green => sprites::GREEN.sprite(0),
     }
@@ -63,8 +55,8 @@ impl<const N: usize> Pegs<N> {
 
     pub fn spawn_pegs<const WALL_LEFT: i32, const WALL_RIGHT: i32>(
         rng: &mut RandomNumberGenerator,
+        level: &Level,
     ) -> Pegs<N> {
-        let peg_count = GameConfig::MAX_PEGS_TO_SPAWN;
         let screen_height = GameConfig::PEG_SPAWN_SCREEN_HEIGHT;
         let min_y = GameConfig::PEG_SPAWN_MIN_Y;
 
@@ -74,7 +66,7 @@ impl<const N: usize> Pegs<N> {
         let mut collidable = [false; N];
         let mut kind = [Kind::Blue; N];
 
-        for i in 0..peg_count {
+        for (i, k) in level.peg_count::<N>().iter().flatten().enumerate() {
             let x =
                 WALL_LEFT + (rng.next_i32().abs() % (WALL_RIGHT - WALL_LEFT));
             let y = min_y + (rng.next_i32().abs() % (screen_height - min_y));
@@ -90,16 +82,7 @@ impl<const N: usize> Pegs<N> {
             force_radius_squared[i] = force_radius * force_radius;
             showable[i] = true;
             collidable[i] = true;
-
-            kind[i] = if i == 0 || i == 1 {
-                Kind::Green
-            } else if rng.next_i32() > 0 {
-                Kind::Blue
-            } else if rng.next_i32() > 0 {
-                Kind::Yellow
-            } else {
-                Kind::Red
-            }
+            kind[i] = *k;
         }
 
         Pegs::new(positions, force_radius_squared, showable, collidable, kind)
