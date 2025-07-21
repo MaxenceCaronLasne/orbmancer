@@ -12,6 +12,7 @@ use super::{
     peg_generator::PegGenerator,
     physics_handler::PhysicsHandler,
     points_pres::PointsPres,
+    saved_pres::SavedPres,
     score::ScoreManager,
     shake::{ScreenShake, WhiteFlash},
     state::{State, StateManager},
@@ -62,6 +63,7 @@ pub struct GameState<const MAX_PEGS: usize> {
     jauge: Jauge<0, 50>,
     power_jauge: Jauge<0, 50>,
     point_pres: Vec<PointsPres>,
+    saved_pres: Option<SavedPres>,
 
     // Rendering and effects
     background: Background,
@@ -125,6 +127,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
             text_box: TextBox::new(vec2(189, 5), 46),
             jauge: Jauge::new(vec2(num!(184), num!(104))),
             point_pres: Vec::new(),
+            saved_pres: None,
             power_jauge: Jauge::new(GameConfig::power_gauge_pos()),
             background: Background::new(),
             screen_shake: ScreenShake::inactive(),
@@ -167,7 +170,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
-        self.update_points_pres();
+        self.update_pres();
 
         let delta = num!(GameConfig::DELTA_TIME);
 
@@ -213,7 +216,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         &mut self,
         input: &ButtonController,
     ) -> Result<State, Error> {
-        self.update_points_pres();
+        self.update_pres();
         if InputHandler::is_inventory_pressed(input) {
             self.set_text_to_current_ball();
             return self.state_manager.return_to_previous();
@@ -254,7 +257,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
-        self.update_points_pres();
+        self.update_pres();
 
         let (position, velocity, touched) =
             PhysicsHandler::move_ball_and_detect_collisions(
@@ -277,6 +280,9 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         if self.bucket.is_in_bucket(self.ball.position) {
             self.start_end_effects();
+            self.saved_pres = Some(SavedPres::new(
+                self.ball.position + vec2(num!(0), num!(-10)),
+            ));
             return Ok(State::Counting {
                 bucketed: self.current_ball_data,
             });
@@ -298,7 +304,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.update_peg_generation()?;
         self.bucket
             .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
-        self.update_points_pres();
+        self.update_pres();
 
         PhysicsHandler::hide_non_collidable_pegs(&mut self.pegs);
 
@@ -330,8 +336,14 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         self.white_flash.update();
     }
 
-    pub fn update_points_pres(&mut self) {
+    pub fn update_pres(&mut self) {
         self.point_pres.retain_mut(|pp| pp.update());
+
+        if let Some(sp) = &mut self.saved_pres {
+            if !sp.update() {
+                self.saved_pres = None;
+            }
+        }
     }
 
     pub fn transition_state(&mut self, new_state: State) {
@@ -371,6 +383,10 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
 
         for pp in self.point_pres.iter_mut() {
             pp.show(frame);
+        }
+
+        if let Some(sp) = &mut self.saved_pres {
+            sp.show(frame);
         }
 
         if matches!(self.state_manager.current(), State::Aiming) {
