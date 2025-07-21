@@ -61,8 +61,6 @@ impl PointsPres {
             div *= 10;
         }
 
-        agb::println!("Score: {:?}", score);
-
         Some(Self {
             base_position: position,
             sprites,
