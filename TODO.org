@@ -10,22 +10,12 @@
 #+END_SRC
 
 * TODO First Demo
-** TODO Title Scene
-*** TODO Menu UI
-**** TODO Rubriques
-- Start Game (or press start)
-- Instructions
-- Credits
-**** TODO Input system
-***** TODO Up/Down
-***** TODO A to select
-*** TODO Background
-*** TODO Scene Transition
-- (Fade to black?)
-*** TODO Music
+** DONE Title Scene
+*** DONE Input system
+**** DONE A to select
+*** DONE Background
 
-** TODO Game Scene
-*** TODO Music
+** DONE Game Scene
 *** DONE Inventory UI
 :LOGBOOK:
 - State "DONE"       from "TODO"       [2025-07-18 Fri 11:48]

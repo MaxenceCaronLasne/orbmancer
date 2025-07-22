@@ -27,7 +27,7 @@ impl Level {
 
     pub fn new_test_level() -> Self {
         Self {
-            target_score: 1000,
+            target_score: 100,
             blue_qty: 20,
             red_qty: 10,
             yellow_qty: 5,
