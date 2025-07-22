@@ -1,50 +1,71 @@
 #+title: Todo
 
-* TODO Title Scene
-** TODO Menu UI
-*** TODO Rubriques
+#+BEGIN_SRC
+
+[TITLE SCENE] ---> [GAME SCENE] --win--> [DROP SCENE]
+     ^                |    ^                   |
+     |                |    |                   |
+     +--[GAME OVER]<--+    +-------------------+
+
+#+END_SRC
+
+* TODO First Demo
+** TODO Title Scene
+*** TODO Menu UI
+**** TODO Rubriques
 - Start Game (or press start)
 - Instructions
 - Credits
-*** TODO Input system
-**** TODO Up/Down
-**** TODO A to select
-** TODO Background
-** TODO Scene Transition
+**** TODO Input system
+***** TODO Up/Down
+***** TODO A to select
+*** TODO Background
+*** TODO Scene Transition
 - (Fade to black?)
-** TODO Music
+*** TODO Music
+
+** TODO Game Scene
+*** TODO Music
+*** DONE Inventory UI
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-18 Fri 11:48]
+:END:
+*** DONE Peg Generation
+*** DONE Touched Peg
+**** DONE Transparency
+**** KILL +1 Animation
+*** DONE Screen shake
+*** DONE Fix: Shake artifact on background
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-18 Fri 17:52]
+:END:
+*** DONE Fix: NeighborNotFound error
+
+** TODO Drop Scene
+*** TODO UI Mockup
+*** TODO UI Boxes
+*** TODO Ball Effects Text Box
+*** TODO Input
+**** TODO Left/Right (or Up/Down) to choose a new ball
+**** TODO A to select
+*** TODO Generate balls
+*** TODO Music
+
+** TODO Game Over Scene
+*** TODO Scene Transition
+*** TODO Input
+*** TODO Music
+
+** TODO Progression
+*** TODO x20 Ball Effects
+*** TODO x5 Bucket Effects
 
 * TODO Credit Scene
 ** TODO Scene Transition
 *** TODO Press A or Start to return
 ** TODO Music
 
-* TODO Game Scene
-** DONE Inventory UI
-:LOGBOOK:
-- State "DONE"       from "TODO"       [2025-07-18 Fri 11:48]
-:END:
-** DONE Peg Generation
-** DONE Touched Peg
-*** DONE Transparency
-*** KILL +1 Animation
-** TODO Music
-** DONE Screen shake
-** DONE Fix: Shake artifact on background
-:LOGBOOK:
-- State "DONE"       from "TODO"       [2025-07-18 Fri 17:52]
-:END:
-** TODO Fix: NeighborNotFound error
 
-* TODO Drop Scene
-** TODO UI Mockup
-** TODO UI Boxes
-** TODO Ball Effects Text Box
-** TODO Input
-*** TODO Left/Right (or Up/Down) to choose a new ball
-*** TODO A to select
-** TODO Generate balls
-** TODO Music
 
 * TODO Map Scene
 ** TODO Level Icon
@@ -63,11 +84,3 @@
 ** TODO Ball Effects Text Box
 ** TODO Music
 
-* TODO Game Over Scene
-** TODO Scene Transition
-** TODO Input
-** TODO Music
-
-* TODO Progression
-** TODO x20 Ball Effects
-** TODO x5 Bucket Effects

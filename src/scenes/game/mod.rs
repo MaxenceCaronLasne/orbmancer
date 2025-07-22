@@ -1,6 +1,6 @@
 use crate::level::Level;
 use crate::{error::Error, save::Save, scenes::Scene};
-use agb::input::ButtonController;
+use agb::input::{Button, ButtonController};
 
 mod background;
 mod ball;
@@ -49,7 +49,7 @@ fn update<const MAX_PEGS: usize>(
             }
 
             if game_state.is_winning() {
-                return Ok(Scene::Win);
+                return Ok(Scene::Drop);
             }
 
             match game_state.pop_ball() {
@@ -86,6 +86,8 @@ pub fn main(
     crate::bench::init(&mut timers);
 
     game_state.set_text_to_current_ball();
+
+    crate::reset::reset_input(Button::A, &mut input, &mut gfx);
 
     loop {
         match update(&mut game_state, &mut input) {

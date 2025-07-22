@@ -14,6 +14,7 @@ mod error;
 mod level;
 mod peg;
 mod physics;
+mod reset;
 mod save;
 mod scenes;
 mod text;
