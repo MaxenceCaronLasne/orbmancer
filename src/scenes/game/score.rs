@@ -1,5 +1,4 @@
 use crate::peg::Kind;
-use crate::scenes::game::config::GameConfig;
 use crate::scenes::game::counter::Counter;
 use crate::scenes::game::effect::{BallData, BucketEffect};
 

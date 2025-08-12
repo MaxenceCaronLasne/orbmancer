@@ -51,7 +51,6 @@ impl GameConfig {
     pub const BUCKET_WALL_OFFSET_RIGHT: i32 = 28;
 
     // Peg Generation
-    pub const MAX_PEGS_TO_SPAWN: usize = 50;
     pub const PEG_SPAWN_SCREEN_HEIGHT: i32 = 120;
     pub const PEG_SPAWN_MIN_Y: i32 = 30;
     pub const PEG_SPAWN_VELOCITY_RANGE: i32 = 100;

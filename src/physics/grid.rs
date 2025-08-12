@@ -66,19 +66,6 @@ where
         }
     }
 
-    fn remove_in_cell(
-        index: Index,
-        cell: &mut HeaplessVec<Index, MAX_NB_NEIGHBOR_PER_CELL>,
-    ) -> Result<(), Error> {
-        if Self::try_remove_in_cell(index, cell)? {
-            Ok(())
-        } else {
-            agb::println!("ERROR: Object {:?} not found in cell", index);
-            agb::println!("Cell contents: {:?}", cell.as_slice());
-            agb::println!("Cell has {} objects", cell.len());
-            Err(Error::NeighborNotFound)
-        }
-    }
 
     pub fn new(
         positions: &[Coordinates],
@@ -105,17 +92,6 @@ where
         Ok(res)
     }
 
-    pub fn insert(
-        &mut self,
-        index: usize,
-        position: Coordinates,
-    ) -> Result<(), Error> {
-        let index = Index::try_from(index).map_err(|_| Error::IndexTooBig)?;
-        let (x, y) = Self::spatial_to_grid_coords(&position)?;
-        Self::insert_in_cell(index, &mut self.grid[x][y])?;
-        
-        Ok(())
-    }
 
     pub fn update(
         &mut self,

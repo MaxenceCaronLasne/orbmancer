@@ -1,4 +1,3 @@
-use crate::error::Error;
 use heapless::Vec;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,9 +50,6 @@ impl Save {
         }
     }
 
-    pub fn push_ball(&mut self, kind: BallKind) -> Result<(), Error> {
-        self.inventory.push(kind).map_err(|_| Error::InventoryFull)
-    }
 
     pub fn inventory(&self) -> &Vec<BallKind, 16> {
         &self.inventory

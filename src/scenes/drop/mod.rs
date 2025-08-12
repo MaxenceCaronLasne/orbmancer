@@ -14,7 +14,7 @@ include_background_gfx!(
     BACKGROUND => deduplicate "assets/drop_screen.aseprite",
 );
 
-pub fn main(gba: &mut agb::Gba, save: &mut Save) -> Result<Scene, Error> {
+pub fn main(gba: &mut agb::Gba, _save: &mut Save) -> Result<Scene, Error> {
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
 
