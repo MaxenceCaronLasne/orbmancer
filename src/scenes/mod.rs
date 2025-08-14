@@ -5,6 +5,7 @@ use crate::save::Save;
 mod drop;
 mod game;
 mod game_over;
+mod text_box;
 mod title;
 
 pub enum Scene {

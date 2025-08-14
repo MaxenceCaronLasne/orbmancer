@@ -1,4 +1,5 @@
 use super::{
+    super::text_box::TextBox,
     background::Background,
     ball::Ball,
     config::GameConfig,
@@ -16,7 +17,6 @@ use super::{
     score::ScoreManager,
     shake::{ScreenShake, WhiteFlash},
     state::{State, StateManager},
-    text_box::TextBox,
 };
 use crate::{
     error::Error, level::Level, physics::Physics, save::Save,

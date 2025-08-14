@@ -5,7 +5,7 @@ use agb::display::object::{Object, Size};
 use agb::fixnum::Vector2D;
 use alloc::vec::Vec;
 
-use super::config::GameConfig;
+pub const TEXT_LETTER_GROUP_SIZE: i32 = 16;
 
 pub struct TextBox {
     position: Vector2D<i32>,
@@ -30,7 +30,7 @@ impl TextBox {
             text,
             &FONT,
             AlignmentKind::Left,
-            GameConfig::TEXT_LETTER_GROUP_SIZE,
+            TEXT_LETTER_GROUP_SIZE,
             self.width,
         ));
     }

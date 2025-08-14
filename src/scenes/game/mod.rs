@@ -21,7 +21,6 @@ mod saved_pres;
 mod score;
 mod shake;
 mod state;
-mod text_box;
 
 #[cfg(test)]
 mod test;
