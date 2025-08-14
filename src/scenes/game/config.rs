@@ -60,7 +60,6 @@ impl GameConfig {
     pub const JAUGE_SPRITE_WIDTH: i32 = 32;
     pub const COUNTER_DIGIT_SPACING: f32 = 4.0;
     pub const COUNTER_POSITION_OFFSET: f32 = 2.0;
-    pub const TEXT_LETTER_GROUP_SIZE: i32 = 16;
     pub const INVENTORY_ITEM_SPACING: i32 = 12;
 
     // Visual Effects

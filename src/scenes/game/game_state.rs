@@ -169,7 +169,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
         self.update_peg_generation()?;
         self.bucket
-            .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
+            .update::<{ GameConfig::WALL_LEFT + 2 }, { GameConfig::WALL_RIGHT - 2 }>();
         self.update_pres();
 
         let delta = num!(GameConfig::DELTA_TIME);
@@ -256,7 +256,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
         self.update_peg_generation()?;
         self.bucket
-            .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
+            .update::<{ GameConfig::WALL_LEFT + 2 }, { GameConfig::WALL_RIGHT - 2 }>();
         self.update_pres();
 
         let (position, velocity, touched) =
@@ -303,7 +303,7 @@ impl<const MAX_PEGS: usize> GameState<MAX_PEGS> {
         PhysicsHandler::update_pegs(&mut self.physics, &mut self.pegs)?;
         self.update_peg_generation()?;
         self.bucket
-            .update::<{ GameConfig::WALL_LEFT }, { GameConfig::WALL_RIGHT }>();
+            .update::<{ GameConfig::WALL_LEFT + 2 }, { GameConfig::WALL_RIGHT - 2 }>();
         self.update_pres();
 
         PhysicsHandler::hide_non_collidable_pegs(&mut self.pegs);

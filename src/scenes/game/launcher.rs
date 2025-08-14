@@ -111,6 +111,7 @@ impl Launcher {
                     - vec2(num!(16), num!(16)))
                 .round(),
             )
+            .set_priority(agb::display::Priority::P3)
             .show(frame);
     }
 }

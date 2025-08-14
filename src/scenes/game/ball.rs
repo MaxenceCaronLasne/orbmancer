@@ -54,6 +54,7 @@ impl Ball {
         self.sprite
             .set_affine_matrix(affine_matrix_instance)
             .set_pos(self.position.round())
+            .set_priority(agb::display::Priority::P2)
             .show(frame);
     }
 }

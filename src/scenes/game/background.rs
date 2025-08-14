@@ -7,7 +7,7 @@ use agb::include_background_gfx;
 
 include_background_gfx!(
     mod background,
-    "000000",
+    "000001",
     GAME => deduplicate "assets/background.aseprite",
     WHITE => deduplicate "assets/white_background.aseprite"
 );
@@ -22,7 +22,7 @@ impl Background {
         VRAM_MANAGER.set_background_palettes(background::PALETTES);
 
         let mut game_background = RegularBackground::new(
-            Priority::P3,
+            Priority::P0,
             RegularBackgroundSize::Background32x32,
             TileFormat::FourBpp,
         );
