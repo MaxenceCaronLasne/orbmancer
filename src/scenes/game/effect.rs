@@ -55,7 +55,7 @@ impl BallData {
     }
 }
 
-pub fn from_kinds(kinds: &HeaplessVec<BallKind, 16>) -> Vec<BallData> {
+pub fn from_kinds(kinds: &HeaplessVec<BallKind, 10>) -> Vec<BallData> {
     kinds
         .iter()
         .map(|kind| BallData::from_kind(*kind))

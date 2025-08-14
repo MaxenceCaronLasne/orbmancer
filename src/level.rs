@@ -9,9 +9,9 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new_test_level() -> Self {
+    pub fn new_test_level(level: i32) -> Self {
         Self {
-            target_score: 100,
+            target_score: 50 * level,
             blue_qty: 20,
             red_qty: 10,
             yellow_qty: 5,

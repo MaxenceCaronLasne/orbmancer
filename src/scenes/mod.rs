@@ -19,10 +19,11 @@ pub fn main(mut gba: agb::Gba, mut save: Save) -> Result<(), Error> {
     let mut state = Scene::Title;
 
     loop {
+        let level = save.level();
         state = match state {
             Scene::Title => title::main(&mut gba)?,
             Scene::Game => {
-                game::main(&mut gba, &mut save, Level::new_test_level())?
+                game::main(&mut gba, &mut save, Level::new_test_level(level))?
             }
             Scene::GameOver => game_over::main(&mut gba)?,
             Scene::Drop => drop::main(&mut gba, &mut save)?,

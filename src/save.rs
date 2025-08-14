@@ -29,15 +29,6 @@ impl BallKind {
         }
     }
 
-    pub fn from_i32(value: i32) -> BallKind {
-        match value {
-            0 => BallKind::Identity,
-            1 => BallKind::TheDoubler,
-            2 => BallKind::SmallGrabber,
-            _ => BallKind::Identity, // Default case
-        }
-    }
-
     pub fn rand(rng: &mut RandomNumberGenerator) -> BallKind {
         let v = rng.next_i32() as usize;
         BallKind::DROPPABLES[v % BallKind::NB_DROPPABLES]
@@ -45,28 +36,33 @@ impl BallKind {
 }
 
 pub struct Save {
-    inventory: Vec<BallKind, 16>,
+    inventory: Vec<BallKind, 10>,
     coins: i32,
+    level: i32,
 }
 
 impl Save {
     pub fn new() -> Self {
         let mut vec = Vec::new();
-        let _ = vec.push(BallKind::TheDoubler);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
         let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::Identity);
-        let _ = vec.push(BallKind::SmallGrabber);
 
         Self {
             inventory: vec,
             coins: 0,
+            level: 1,
         }
+    }
+
+    pub fn level(&self) -> i32 {
+        self.level
+    }
+
+    pub fn increase_level(&mut self) {
+        self.level += 1;
     }
 
     pub fn push_ball(&mut self, ball: BallKind) {
@@ -75,7 +71,7 @@ impl Save {
         });
     }
 
-    pub fn inventory(&self) -> &Vec<BallKind, 16> {
+    pub fn inventory(&self) -> &Vec<BallKind, 10> {
         &self.inventory
     }
 

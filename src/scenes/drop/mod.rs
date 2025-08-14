@@ -30,6 +30,8 @@ pub fn main(gba: &mut agb::Gba, save: &mut Save) -> Result<Scene, Error> {
     let mut gfx = gba.graphics.get();
     let mut input = ButtonController::new();
 
+    save.increase_level();
+
     crate::reset::reset_input(Button::A, &mut input, &mut gfx);
 
     VRAM_MANAGER.set_background_palettes(background::PALETTES);
